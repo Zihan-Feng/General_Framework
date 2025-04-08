@@ -32,7 +32,7 @@ extern osThreadId_t CAN2_Send_TaskHandle;
 extern osThreadId_t Debug_TaskHandle;
 extern osThreadId_t Chassis_TaskHandle;
 extern osThreadId_t Control_TaskHandle;
-
+extern osThreadId_t ROSCOM_TaskHandle;
 
 /* Definitions for TaskFunc */
 void ins_Task(void *argument);
@@ -42,7 +42,7 @@ void CAN2_Send_Task(void *argument);
 void Debug_Task(void *argument);
 void Chassis_Task(void *argument);
 void Control_Task(void *argument);
-
+void ROSCOM_Task(void *argument);
 
 /**
  * @brief os任务创建初始化函数
@@ -51,12 +51,12 @@ void Control_Task(void *argument);
 void osTaskInit(void)
 {
 
-    const osThreadAttr_t ins_TaskHandle_attributes = {
-    .name = "ins_TaskHandle",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t) osPriorityNormal,
-    };
-    ins_TaskHandle = osThreadNew(ins_Task, NULL, &ins_TaskHandle_attributes);
+    // const osThreadAttr_t ins_TaskHandle_attributes = {
+    // .name = "ins_TaskHandle",
+    // .stack_size = 128 * 4,
+    // .priority = (osPriority_t) osPriorityNormal,
+    // };
+    // ins_TaskHandle = osThreadNew(ins_Task, NULL, &ins_TaskHandle_attributes);
 
 
     const osThreadAttr_t IWDGTaskHandle_attributes = {
@@ -80,21 +80,24 @@ void osTaskInit(void)
     };
     CAN2_Send_TaskHandle = osThreadNew(CAN2_Send_Task, NULL, &CAN2_SendTaskHandle_attributes);
 
+#ifdef DEBUG_TASK_RUN 
     const osThreadAttr_t DebugTaskHandle_attributes = {
     .name = "Debug_TaskHandle",
-    .stack_size = 128*4 ,
+    .stack_size = 256*4 ,
     .priority = (osPriority_t) osPriorityNormal,
     };
-#ifdef DEBUG_TASK_RUN 
     Debug_TaskHandle = osThreadNew(Debug_Task, NULL, &DebugTaskHandle_attributes);
 #endif 
 
+
+#ifdef CHASSIS_TO_DEBUG
     const osThreadAttr_t ChassisTaskHandle_attributes = {
     .name = "Chassis_TaskHandle",
     .stack_size = 128*4 ,
     .priority = (osPriority_t) osPriorityNormal,
     };
     Chassis_TaskHandle = osThreadNew(Chassis_Task, NULL, &ChassisTaskHandle_attributes);
+#endif
 
     const osThreadAttr_t ControlTaskHandle_attributes = {
     .name = "Control_TaskHandle",
@@ -103,11 +106,21 @@ void osTaskInit(void)
     };
     Control_TaskHandle = osThreadNew(Control_Task, NULL, &ControlTaskHandle_attributes);
 
+    const osThreadAttr_t ROSCOMTaskHandle_attributes = {
+    .name = "ROSCOM_TaskHandle",
+    .stack_size = 128*4 ,
+    .priority = (osPriority_t) osPriorityNormal,
+    };
+    // Control_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
+
 }
 
 
 __attribute((noreturn)) void IWDGTask(void *argument)
 {
+    portTickType currentTime;
+    currentTime = xTaskGetTickCount();
+
     static float IWDG_start;
     static float IWDG_dt;
     static char sIWDG_dt[20];
@@ -122,7 +135,7 @@ __attribute((noreturn)) void IWDGTask(void *argument)
         {
             LOGERROR("IWDGTask is being DELAY!!! dt= [%s] ms", sIWDG_dt);
         }
-        osDelay(100);
+        vTaskDelayUntil(&currentTime,100);
     }
 }
 

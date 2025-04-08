@@ -23,6 +23,8 @@ extern "C"{
 #include "queue.h"
 #include "cmsis_os.h"
 #include "bsp_can.h"
+#include "ros_com.h"
+
 /*------------------------------------extern------------------------------------*/
 
 extern QueueHandle_t CAN1_TxPort;
@@ -66,7 +68,7 @@ void CAN2_Rx_Callback(CAN_Rx_Instance_t *can_instance);
  */
 void CAN1_Send_Task(void *argument);
 void CAN2_Send_Task(void *argument);
-
+void ROSCOM_Task(void *argument);
 
 #ifdef __cplusplus
 }
@@ -75,6 +77,7 @@ void CAN2_Send_Task(void *argument);
 #ifdef __cplusplus
 #include "chassis_task.h"
 #include "Unitree_Go1.h"
+#include "debug_task.h"
 
 #endif
 
