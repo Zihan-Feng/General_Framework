@@ -26,6 +26,10 @@ osThreadId_t Control_TaskHandle;
 Publisher *ctrl_pub;
 pub_Control_Data ctrl_data;
 
+/* 订阅xbox遥控控制信息 */
+Subscriber *xbox_data_sub;
+pub_Xbox_Data xbox_chassis_data;
+
 /* 订阅遥控信息 */
 Subscriber *air_joy_sub;
 pub_air_joy_data air_joy_data;
@@ -109,7 +113,15 @@ void Air_Joy_Process()
     }
 }
 
-
+void Xbox_Data_Process()
+{
+  ctrl_data.linear_x = (int)(xbox_chassis_data.joyLHori - 32767) / 32767.0f * MAX_VELOCITY;
+  ctrl_data.linear_y = (int)(xbox_chassis_data.joyLVert - 32767) / 32767.0f * MAX_VELOCITY;
+  ctrl_data.Omega = (int)(xbox_chassis_data.joyRHori - 32767) / 32767.0f * MAX_VELOCITY;
+  ctrl_data.Status = 1;
+  ctrl_data.Move = 0;
+  ctrl_data.ctrl = 0;
+}
 
 
 
@@ -119,7 +131,7 @@ __attribute((noreturn)) void Control_Task(void *argument)
     portTickType currentTime;
     currentTime = xTaskGetTickCount();
     /* 机器人控制接口，这里选用航模遥控 */
-    #ifdef USE_AIRJOY_CONTROL
+#ifdef USE_AIRJOY_CONTROL
 
 
     /* 航模遥控 */
@@ -153,18 +165,30 @@ __attribute((noreturn)) void Control_Task(void *argument)
         vTaskDelayUntil(&currentTime,2);
     }
 #elif XBOX_CONTROL
-    xbox_uart_instance = Uart_Register(&xbox_uart_package);
-    if(xbox_uart_instance == NULL)
+
+    publish_data xbox_data;
+    xbox_data_sub = register_sub("xbox",1);
+
+    /* 发布控制数据 */
+    ctrl_pub = register_pub("ctrl_pub");
+    publish_data temp_ctrl_data;
+
+    for(;;)
     {
-        LOGERROR("xbox uart_instance is not prepared!");
-        vTaskDelete(NULL);
+        xbox_data = xbox_data_sub->getdata(xbox_data_sub);
+        if( xbox_data.len != -1)
+        {
+            xbox_chassis_data = *(pub_Xbox_Data *)xbox_data.data;
+            Xbox_Data_Process();
+            temp_ctrl_data.data = (uint8_t*)&ctrl_data;
+            temp_ctrl_data.len = sizeof(pub_Control_Data);
+            ctrl_pub->publish(ctrl_pub,temp_ctrl_data);
+        }
+        vTaskDelayUntil(&currentTime,2);
+
+    /* 发布控制数据 */
+
     }
-    if(Xbox_Init(xbox_uart_instance)==0)
-    {
-        LOGERROR("xbox init failed!");
-    }
-    
-    vTaskDelete(NULL);//xbox初始化完这个任务就能删了
     
 #else
     LOGERROR("NO CONTROL METHOD SELECTED!");

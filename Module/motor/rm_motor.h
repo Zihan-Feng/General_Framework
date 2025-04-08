@@ -42,11 +42,63 @@ public:
             : Motor(id,can_rx_instance,can_tx_instance,ctrl_config,max_current,reduction_ratio){}
 
     virtual ~RM_Common() = default;
-    virtual void set_motor_ref(float ref) override;
-    virtual void stop_the_motor() override;
-    virtual void enable_the_motor() override;
-    virtual void pid_control_to_motor() override;
-    void Motor_Ctrl(float ref);
+    virtual void set_motor_ref(float ref) override
+    {
+        this->ctrl_motor_config.motor_controller_setting.pid_ref = ref;
+    }
+    virtual void stop_the_motor() override
+    {
+        this->ctrl_motor_config.motor_working_status = MOTOR_STOP;
+    }
+    virtual void enable_the_motor() override
+    {
+        this->ctrl_motor_config.motor_working_status = MOTOR_ENABLED;
+    }
+    virtual void pid_control_to_motor() override
+    {
+        if (this->ctrl_motor_config.motor_working_status == MOTOR_STOP) {
+            /* 电机失能，直接让输出电流为0 */
+            this->Out = 0;
+            return;
+          }
+          float pid_ref, pid_measure;
+          pid_ref = this->ctrl_motor_config.motor_controller_setting.pid_ref;
+        
+          if (this->ctrl_motor_config.motor_is_reverse_flag ==
+              MOTOR_DIRECTION_REVERSE) {
+            pid_ref *= -1;
+          }
+        
+          /*
+              常见搭配：外位置环+内速度环 = outer 为位置环 inner 为速度环
+                      单速度环 = out 和 inner 都为速度环
+                      单位置环 = out 和 inner 都为位置环
+           */
+        
+          /* pid_ref会顺次通过被启用的闭环充当数据的载体 */
+          /* 位置环计算，只要外环设置为位置环，就执行位置环 */
+          if (this->ctrl_motor_config.outer_loop_type & ANGLE_LOOP) {
+            pid_measure = this->angle;
+            pid_ref = PID_Calculate(
+                &this->ctrl_motor_config.motor_controller_setting.angle_PID,
+                pid_measure, pid_ref);
+          }
+        
+          /* 速度环计算，只要内环设置为速度环，就执行速度环 */
+          if (this->ctrl_motor_config.inner_loop_type & SPEED_LOOP) {
+            pid_measure = this->speed_aps;
+            pid_ref = PID_Calculate(
+                &this->ctrl_motor_config.motor_controller_setting.speed_PID,
+                pid_measure, pid_ref);
+          }
+          this->Out = this->aps_to_current(pid_ref);
+    }
+    void Motor_Ctrl(float ref)
+    {
+        this->enable_the_motor();
+        this->set_motor_ref(ref);
+        this->pid_control_to_motor();
+    };
 protected:
     /* 根据大疆电机can通讯协议重写对应的更新函数 */
 

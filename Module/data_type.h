@@ -52,7 +52,13 @@ typedef struct {
   uint16_t trigLT;
   bool btnDirUp;
   bool btnDirDown;
+  bool btnDirLeft;
+  bool btnDirRight;
   bool btnB;
+  uint16_t joyLHori;
+  uint16_t joyLVert;
+  uint16_t joyRHori;
+  uint16_t joyRVert;
   // 这里填写你需要传输的Xbox按键摇杆等数据
   // bool btnY;
   // bool btnY_last;

@@ -122,6 +122,13 @@ typedef struct PACKED
     float t[4];
 } Ordinary_Least_Squares_t;
 
+typedef struct {
+    float start, target;
+    float speed_start, max_speed, speed_end;
+    float max_acc, max_dec;
+    float acc_ratio, dec_ratio;
+} TrapezoidParams;
+
 // 快速开方
 float Sqrt(float x);
 

@@ -410,4 +410,57 @@ unsigned char serial_get_crc8_value(unsigned char *data, unsigned char len)
 	return crc;
 }
 
+/**
+ * @brief          梯形规划
+ * @param[in]      初始值，当前值，目标值，
+ *                  初始速度，结束速度,最大加速度，最大减速度，
+ *                     最大速度，加速比例，减速比例
+ * @retval         返回输出
+ */
 
+
+float trapezoidal_planning(const TrapezoidParams* params, float current) {
+    // 参数校验
+    if (params->acc_ratio + params->dec_ratio > 1.0f || 
+        params->speed_start > params->max_speed || 
+        params->max_acc <= 0 || params->max_dec <= 0) {
+        return params->speed_start;
+    }
+
+    const float total_distance = params->target - params->start;
+    if (total_distance < 1e-6f) {
+        return (current >= params->target) ? params->speed_end : params->speed_start;
+    }
+
+    // 计算各阶段距离
+    const float acc_distance = total_distance * params->acc_ratio;
+    const float dec_distance = total_distance * params->dec_ratio;
+    const float con_distance = total_distance - acc_distance - dec_distance;
+
+    // 计算加速段结束速度
+    float v_acc_end = sqrtf(2.0f * params->max_acc * acc_distance + 
+                          params->speed_start * params->speed_start);
+    v_acc_end = fminf(v_acc_end, params->max_speed);
+
+    // 动态计算减速度
+    float dec = (params->speed_end * params->speed_end - v_acc_end * v_acc_end) / 
+               (2.0f * dec_distance);
+    dec = fmaxf(dec, -params->max_dec);
+
+    // 实时位置处理
+    const float real_distance = current - params->start;
+    if (real_distance < 0) return params->speed_start;
+    if (real_distance > total_distance) return params->speed_end;
+
+    // 分阶段计算速度
+    if (real_distance <= acc_distance) {
+        return fminf(sqrtf(2.0f * params->max_acc * real_distance + 
+                          params->speed_start * params->speed_start), v_acc_end);
+    } else if (real_distance <= acc_distance + con_distance) {
+        return v_acc_end;
+    } else {
+        const float remaining_distance = total_distance - real_distance;
+        return fmaxf(sqrtf(v_acc_end * v_acc_end + 2.0f * dec * remaining_distance), 
+                    params->speed_end);
+    }
+}

@@ -107,6 +107,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  __HAL_UART_DISABLE_IT(&huart2, UART_IT_RXNE);
   Robot_Init();
   LOG_CLEAR();
   LOGINFO("FreeRTOS is Ready!\n");

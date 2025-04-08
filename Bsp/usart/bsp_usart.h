@@ -104,6 +104,7 @@ Uart_Instance_t* Uart_Register(uart_package_t *uart_config);
  */
 uint8_t Uart_Receive_Handler(Uart_Instance_t *uart_instance);
 
+uint8_t XBOX_Receive_Handler(Uart_Instance_t *uart_instance);
 
 /**
  * @brief 串口注销函数

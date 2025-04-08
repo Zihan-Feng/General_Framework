@@ -187,8 +187,9 @@ Motor_Control_Setting_t m3508_lf_control_instance = {
             // 预测模型阶数 OLS_Order
             .OLS_Order = 1,
             // PID 控制器的改进选项 Improve，包括输出滤波、梯形积分、微分在测量值上、积分限制等
-            .Improve = Feedforward_CONTROLL | OutputFilter | Trapezoid_Intergral | Derivative_On_Measurement | Integral_Limit
-        },
+            // .Improve = Feedforward_CONTROLL | OutputFilter | Trapezoid_Intergral | Derivative_On_Measurement | Integral_Limit
+            .Improve = OutputFilter | Trapezoid_Intergral | Derivative_On_Measurement | Integral_Limit
+        },  
         .pid_ref = 0,
     },
     .outer_loop_type = SPEED_LOOP,// 外环控制为速度环
@@ -328,7 +329,7 @@ CCMRAM Motor_C620 chassis_motor[4] = {
                m3508_rb_control_instance, -1),
     Motor_C620(4, m3508_lb_rx_instance, m3508_lb_tx_instance,
                m3508_lb_control_instance, -1)};
-
+               
 /* 创建底盘实例 */
 Omni_Chassis User_Chassis(4, WHEEL_R, CHASSIS_R);
 
@@ -527,7 +528,7 @@ Subscriber *motor_pid_sub;
 pub_vofa_pid pid_data;
 #endif
 
-#ifdef USE_AIRJOY_CONTROL
+#if defined(USE_AIRJOY_CONTROL) || defined(XBOX_CONTROL)
 /* 接收航模遥控控制信息 */
 Subscriber *ctrl_data_sub;
 pub_Control_Data twist;
@@ -617,7 +618,7 @@ uint8_t Chassis_Init() {
   /* 底盘订阅机制初始化 */
   User_Chassis.Chassis_Subscribe_Init();
 
-#ifdef USE_AIRJOY_CONTROL
+  #if defined(USE_AIRJOY_CONTROL) || defined(XBOX_CONTROL)
   /* 遥控器 订阅者准备 */
   ctrl_data_sub = register_sub("ctrl_pub", 1);
 #endif
@@ -667,7 +668,7 @@ __attribute((noreturn)) void Chassis_Task(void *argument) {
     }
 #endif
 
-#ifdef USE_AIRJOY_CONTROL
+#if defined(USE_AIRJOY_CONTROL) || defined(XBOX_CONTROL)
     /* 接收航模遥控数据 */
     temp_data = ctrl_data_sub->getdata(ctrl_data_sub);
     if (temp_data.len != -1) {

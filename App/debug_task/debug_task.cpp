@@ -100,17 +100,17 @@ extern Motor_C620 chassis_motor[4];
 
 #ifdef TEST_DM
 CAN_Rx_Instance_t dm_rx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .RxHeader = {0},
     .rx_len = 6,
     .can_rx_buff = {0},
 };
 
 CAN_Tx_Instance_t dm_tx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .isExTid = 0,
     .tx_mailbox = 0,
-    .tx_id = 0x01,
+    .tx_id = 0x08,
     .tx_len = 8,
     .can_tx_buff = {0},
 };
@@ -118,11 +118,11 @@ CAN_Tx_Instance_t dm_tx_instance = {
 Motor_Control_Setting_t DM_motor_ctrl = {0};
 
 DM_motor dm[1] = {
-    DM_motor(1, dm_rx_instance, dm_tx_instance, DM_motor_ctrl,_POS_with_SPEED_CONTROL,0, 10)
+    DM_motor(8, dm_rx_instance, dm_tx_instance, DM_motor_ctrl,_POS_with_SPEED_CONTROL,0, 10)
 };
 
 float dm_pos = 0;
-float dm_speed = 0;
+float dm_speed = 10;
 #endif
 
 #ifdef TEST_SYSTEM_TURNER
@@ -240,7 +240,18 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #endif
 
 #ifdef TEST_DM
-    dm[0].POS_with_SPEED_CONTROL(dm_pos,dm_speed);
+    if (xbox_data_pub.btnDirLeft)
+    {
+      dm_pos += 0.05;
+      dm[0].POS_with_SPEED_CONTROL(dm_pos,dm_speed);
+    } else if (xbox_data_pub.btnDirRight) {
+      dm_pos -= 0.05;
+      dm[0].POS_with_SPEED_CONTROL(dm_pos,dm_speed);
+    } else if (xbox_data_pub.btnB) {
+      dm[0].DM_MOTOR_ZERO_POSITION();
+    } else if (xbox_data_pub.btnY) {
+      dm[0].DM_MOTOR_ENABLE();
+    }
     COMMON_Motor_SendMsgs(dm);
 #endif
 

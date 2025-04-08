@@ -303,7 +303,7 @@ void USART2_IRQHandler(void)
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
 #ifdef XBOX_CONTROL
-  Uart_Receive_Handler(xbox_uart_instance);
+  XBOX_Receive_Handler(xbox_uart_instance);
 #endif
   /* USER CODE END USART2_IRQn 1 */
 }

@@ -53,11 +53,24 @@ extern VESC vesc[3];
 
 extern DM_motor dm[1];
 
+extern XBOX_Instance_t *XBOX_Instance;
+extern Uart_Instance_t *xbox_uart_instance;
+extern uart_package_t xbox_uart_package;
+
 uint8_t Common_Service_Init() {
   CAN1_TxPort = xQueueCreate(16, sizeof(CAN_Tx_Instance_t));
   CAN2_TxPort = xQueueCreate(16, sizeof(CAN_Tx_Instance_t));
   SubPub_Init(); // 话题订阅机制开启
-
+  xbox_uart_instance = Uart_Register(&xbox_uart_package);
+  if(xbox_uart_instance == NULL)
+  {
+    LOGERROR("xbox uart_instance is not prepared!");
+    vTaskDelete(NULL);
+  }
+  if(Xbox_Init(xbox_uart_instance)==0)
+  {
+    LOGERROR("xbox init failed!");
+  }
   return 1;
 }
 
@@ -90,7 +103,21 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
       break;
     }
 #endif
-
+#ifdef TEST_DM
+    case 0x08: {
+      dm[0].update(can_instance->can_rx_buff);
+      break;
+    }
+    case 0x02: {
+      break;
+    }
+    case 0x03: {
+      break;
+    }
+    case 0x04: {
+      
+    }
+#endif
 #ifdef TEST_SYSTEM_GM6020
     case 0x205: {
       gm6020[0].update(can_instance->can_rx_buff);
@@ -198,21 +225,7 @@ void CAN2_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
       break;
     }
 #endif
-#ifdef TEST_DM
-    case 0x01: {
-      dm[0].update(can_instance->can_rx_buff);
-      break;
-    }
-    case 0x02: {
-      break;
-    }
-    case 0x03: {
-      break;
-    }
-    case 0x04: {
-      
-    }
-#endif
+
     }
   } else {
     switch (can_instance->RxHeader.ExtId) {
