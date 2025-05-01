@@ -51,12 +51,12 @@ void ROSCOM_Task(void *argument);
 void osTaskInit(void)
 {
 
-    // const osThreadAttr_t ins_TaskHandle_attributes = {
-    // .name = "ins_TaskHandle",
-    // .stack_size = 128 * 4,
-    // .priority = (osPriority_t) osPriorityNormal,
-    // };
-    // ins_TaskHandle = osThreadNew(ins_Task, NULL, &ins_TaskHandle_attributes);
+    const osThreadAttr_t ins_TaskHandle_attributes = {
+    .name = "ins_TaskHandle",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t) osPriorityNormal,
+    };
+    ins_TaskHandle = osThreadNew(ins_Task, NULL, &ins_TaskHandle_attributes);
 
 
     const osThreadAttr_t IWDGTaskHandle_attributes = {
@@ -111,7 +111,7 @@ void osTaskInit(void)
     .stack_size = 128*4 ,
     .priority = (osPriority_t) osPriorityNormal,
     };
-    // Control_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
+    // ROSCOM_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
 
 }
 

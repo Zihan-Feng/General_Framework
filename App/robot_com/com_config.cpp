@@ -28,7 +28,6 @@
 #include "com_config.h"
 #include "topics.h"
 
-extern Motor_C610 m2006[1];
 
 extern GO_M8010 go1_motor[1];
 
@@ -44,6 +43,9 @@ extern Motor_GM6020 gm6020[1];
 #ifdef USE_OMNI_CHASSIS
 // 全向底盘驱动电机
 extern Motor_C620 chassis_motor[4];
+#endif
+#ifdef TEST_SYSTEM_M2006
+extern Motor_C610 m2006[1];
 #endif
 
 // 舵向电机实例
@@ -88,6 +90,9 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
 #ifdef USE_OMNI_CHASSIS
     case 0x201: {
       chassis_motor[0].update(can_instance->can_rx_buff);
+#ifdef TEST_SYSTEM_M2006
+      m2006[0].update(can_instance->can_rx_buff);
+#endif
       break;
     }
     case 0x202: {
@@ -103,6 +108,7 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
       break;
     }
 #endif
+
 #ifdef TEST_DM
     case 0x08: {
       dm[0].update(can_instance->can_rx_buff);

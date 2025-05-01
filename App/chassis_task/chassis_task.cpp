@@ -54,7 +54,7 @@ osThreadId_t Chassis_TaskHandle;
 
 /* 系统辨识调试使用 */
 CAN_Tx_Instance_t m2006_tx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .isExTid = 0,
     .tx_mailbox = 0,
     .tx_id = 0x200,
@@ -63,7 +63,7 @@ CAN_Tx_Instance_t m2006_tx_instance = {
 };
 
 CAN_Rx_Instance_t m2006_rx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .RxHeader = {0},
     .rx_len = 8,
     .rx_id = 0x201,
@@ -168,16 +168,16 @@ CAN_Rx_Instance_t m3508_lf_rx_instance = {
 Motor_Control_Setting_t m3508_lf_control_instance = {
     .motor_controller_setting = {
         .speed_PID = {
-            .Kp = 80,
-            .Ki = 10,
-            .Kd = 8.5,
+            .Kp = 628,
+            .Ki = 143,
+            .Kd = 20,
             // 设置FFJ（Force Feedback J）的值为0.0
             .FFJ = 0.0,
             // 设置FFB（Force Feedback B）的值为0.0
             .FFB = 0.0,
             .MaxOut = 10000,
             // 积分项的最大限制 IntegralLimit
-            .IntegralLimit = 1000,
+            .IntegralLimit = 4000,
             // 死区带宽 DeadBand，用于消除控制误差
             .DeadBand = 5,
             // 输出低通滤波器的 RC 常数 Output_LPF_RC
@@ -218,11 +218,11 @@ CAN_Rx_Instance_t m3508_rf_rx_instance = {
 Motor_Control_Setting_t m3508_rf_control_instance = {
     .motor_controller_setting =
         {
-            .speed_PID = {.Kp = 80,
-                          .Ki = 10,
-                          .Kd = 8.5,
+            .speed_PID = {.Kp = 628,
+                          .Ki = 143,
+                          .Kd = 20,
                           .MaxOut = 10000,
-                          .IntegralLimit = 1000,
+                          .IntegralLimit = 4000,
                           .DeadBand = 5,
                           .Output_LPF_RC = 0.9,
                           .Derivative_LPF_RC = 0.85,
@@ -258,11 +258,11 @@ CAN_Rx_Instance_t m3508_rb_rx_instance = {
 Motor_Control_Setting_t m3508_rb_control_instance = {
     .motor_controller_setting =
         {
-            .speed_PID = {.Kp = 80,
-                          .Ki = 10,
-                          .Kd = 8.8,
+            .speed_PID = {.Kp = 628,
+                          .Ki = 143,
+                          .Kd = 20,
                           .MaxOut = 10000,
-                          .IntegralLimit = 1000,
+                          .IntegralLimit = 4000,
                           .DeadBand = 5,
                           .Output_LPF_RC = 0.9,
                           .Derivative_LPF_RC = 0.85,
@@ -298,11 +298,11 @@ CAN_Rx_Instance_t m3508_lb_rx_instance = {
 Motor_Control_Setting_t m3508_lb_control_instance = {
     .motor_controller_setting =
         {
-            .speed_PID = {.Kp = 80,
-                          .Ki = 10,
-                          .Kd = 8,
+            .speed_PID = {.Kp = 628,
+                          .Ki = 143,
+                          .Kd = 20,
                           .MaxOut = 10000,
-                          .IntegralLimit = 1000,
+                          .IntegralLimit = 4000,
                           .DeadBand = 5,
                           .Output_LPF_RC = 0.9,
                           .Derivative_LPF_RC = 0.85,
@@ -618,7 +618,7 @@ uint8_t Chassis_Init() {
   /* 底盘订阅机制初始化 */
   User_Chassis.Chassis_Subscribe_Init();
 
-  #if defined(USE_AIRJOY_CONTROL) || defined(XBOX_CONTROL)
+#if defined(USE_AIRJOY_CONTROL) || defined(XBOX_CONTROL)
   /* 遥控器 订阅者准备 */
   ctrl_data_sub = register_sub("ctrl_pub", 1);
 #endif

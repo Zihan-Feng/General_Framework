@@ -93,7 +93,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     TOPICS_DEBUG
     DEBUG_FOR_ACTION 
     USE_ACTION_FOR_IMU
-    # CHASSIS_TO_DEBUG # 当前板是否为底盘控制板
+    CHASSIS_TO_DEBUG # 当前板是否为底盘控制板
     USE_OMNI_CHASSIS # 使用全向轮底盘
     # USE_SWERVE_CHASSIS # 使用舵轮底盘
     # USE_AIRJOY_CONTROL # 使用航模遥控
@@ -107,10 +107,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     DEBUG_TASK_RUN 
     DEBUG_NO_TRACKING
     # TEST_YAW_ADJUST
-    DEBUG_GO1_MOTOR
+    # DEBUG_GO1_MOTOR
     RUBBER_ANGLE_OPTIMIZE # 使用舵向劣弧优化
     TRY_AUTO_CONTROL # 使用自动控制
     # TEST_VESC
+    # TEST_ONE_SWERVE
     # TEST_DM
 )
 
