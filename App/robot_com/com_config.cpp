@@ -45,7 +45,7 @@ extern Motor_GM6020 gm6020[1];
 extern Motor_C620 chassis_motor[4];
 #endif
 #ifdef TEST_SYSTEM_M2006
-extern Motor_C610 m2006[1];
+extern Motor_C630 m2006[1];
 #endif
 
 // 舵向电机实例

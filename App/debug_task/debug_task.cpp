@@ -20,6 +20,7 @@
 #include "topics.h"
 #include "vofa.h"
 #include "xbox.h"
+#include "pathplanning.h"
 
 #ifdef CHASSIS_TO_DEBUG
 #include "pid_controller.h"
@@ -131,7 +132,7 @@ extern Motor_GM6020 gm6020[1];
 #endif
 
 #ifdef TEST_SYSTEM_M2006
-extern Motor_C610 m2006[1];
+extern Motor_C630 m2006[1];
 #endif
 
 float wheel_v = 0;
@@ -180,13 +181,19 @@ float debug_spe = 0;
 float go1_cur_pos = 0;
 float go1_cur_spe = 0;
 #endif
-
+double v_test = 0.0;
 __attribute((noreturn)) void Debug_Task(void *argument) {
-  // portTickType currentTime;
-  // currentTime = xTaskGetTickCount();
+  portTickType currentTime;
+  currentTime = xTaskGetTickCount();
 
 #ifdef TEST_SYSTEM_TURNER
   int count = 0;
+  SCurvePlanner planner(
+    0.0, 2000.0,    // 起始/目标位置 (mm)
+    100.0, 200.0,     // 起始/结束速度 (mm/s)
+    1000.0, 5000.0,  // 最大速度/加速度 (mm/s, mm/s²)
+    10000.0, 3.0   // 加加速度/期望时间 (mm/s³, s)
+);
 #endif
 
 #ifdef VOFA_TO_DEBUG
@@ -238,11 +245,11 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 
 #endif
 #ifdef TEST_SYSTEM_M2006
-    RESET_M2006_STATE = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
-    speed_2006 = (int)(xbox_data_pub.joyRHori - 32767) / 32767.0f * 5000;
-    if(ABS(xbox_data_pub.joyRHori - 32767) < 3000)m2006[0].Motor_Ctrl(0);
-    else m2006[0].Motor_Ctrl(speed_2006);
-    Motor_SendMsgs(m2006);
+    // RESET_M2006_STATE = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
+    // speed_2006 = (int)(xbox_data_pub.joyRHori - 32767) / 32767.0f * 5000;
+    // if(ABS(xbox_data_pub.joyRHori - 32767) < 3000)m2006[0].Motor_Ctrl(0);
+    // else m2006[0].Motor_Ctrl(speed_2006);
+    // Motor_SendMsgs(m2006);
 #endif
 
 #ifdef TEST_ONE_SWERVE
@@ -281,6 +288,8 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
     if (phase >= 2 * PI) {
       phase -= 2 * PI;
     }
+    double dt = 0.01; // 采样周期
+    
 #ifdef TEST_SYSTEM_M3508
     count++;
     if (count <= 3000) {
@@ -300,8 +309,23 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #endif
 
 #ifdef TEST_SYSTEM_M2006
-    m2006[0].Motor_Ctrl(sine);
-    Motor_SendMsgs(m2006);
+    // m2006[0].Motor_Ctrl(sine);
+    // Motor_SendMsgs(m2006);
+    count++;
+    if (count <= 400) {
+      planner.reset();
+      m2006[0].Motor_Ctrl(100);
+      Motor_SendMsgs(m2006);
+    } else if (count > 400 && count <= 800) {
+      v_test = planner.update(dt);
+      m2006[0].Motor_Ctrl(v_test);
+      Motor_SendMsgs(m2006);
+    } else if (count > 800 && count <= 1200) {
+      m2006[0].Motor_Ctrl(0);
+      Motor_SendMsgs(m2006);
+    } else {
+      count = 0;
+    }
 #endif
 
 #ifdef TEST_SYSTEM_GM6020
@@ -347,7 +371,7 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
     //   debug++;
     // }
 #endif
-    // vTaskDelayUntil(&currentTime, 1);
-    vTaskDelay(5);
+    vTaskDelayUntil(&currentTime, 10);
+    // vTaskDelay(5);
   }
 }

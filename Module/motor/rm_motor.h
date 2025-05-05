@@ -352,6 +352,168 @@ protected:
 
 };
 
+
+class Motor_C630 : public Motor {
+    public:
+        // 合并原 RM_Common 构造函数
+        Motor_C630(uint8_t id,
+                  const CAN_Rx_Instance_t& can_rx_instance,
+                  const CAN_Tx_Instance_t& can_tx_instance,
+                  const Motor_Control_Setting_t& ctrl_config,
+                  int16_t max_current, float reduction_ratio) 
+            : Motor(id, can_rx_instance, can_tx_instance, ctrl_config, max_current, reduction_ratio) 
+        {
+            if(this->if_reduction == 1) {
+                this->motor_reduction_ratio = 1;
+            } else if(this->if_reduction == -1) {
+                this->motor_reduction_ratio = 36;
+            } else {
+                this->motor_reduction_ratio = reduction_ratio;
+            }
+        }
+    
+        virtual ~Motor_C630() = default;
+    
+        // 合并原 RM_Common 的控制方法
+        virtual void set_motor_ref(float ref) override {
+            this->ctrl_motor_config.motor_controller_setting.pid_ref = ref;
+        }
+    
+        virtual void stop_the_motor() override {
+            this->ctrl_motor_config.motor_working_status = MOTOR_STOP;
+        }
+    
+        virtual void enable_the_motor() override {
+            this->ctrl_motor_config.motor_working_status = MOTOR_ENABLED;
+        }
+    
+        virtual void pid_control_to_motor() override {
+            if (this->ctrl_motor_config.motor_working_status == MOTOR_STOP) {
+                this->Out = 0;
+                return;
+            }
+    
+            float pid_ref = this->ctrl_motor_config.motor_controller_setting.pid_ref;
+            if (this->ctrl_motor_config.motor_is_reverse_flag == MOTOR_DIRECTION_REVERSE) {
+                pid_ref *= -1;
+            }
+    
+            // 位置环计算
+            if (this->ctrl_motor_config.outer_loop_type & ANGLE_LOOP) {
+                float pid_measure = this->angle;
+                pid_ref = PID_Calculate(
+                    &this->ctrl_motor_config.motor_controller_setting.angle_PID,
+                    pid_measure, pid_ref);
+            }
+    
+            // 速度环计算
+            if (this->ctrl_motor_config.inner_loop_type & SPEED_LOOP) {
+                float pid_measure = this->speed_aps;
+                pid_ref = PID_Calculate(
+                    &this->ctrl_motor_config.motor_controller_setting.speed_PID,
+                    pid_measure, pid_ref);
+            }
+    
+            this->Out = this->aps_to_current(pid_ref);
+        }
+    
+        // 合并原 RM_Common 的控制接口
+        void Motor_Ctrl(float ref) {
+            this->enable_the_motor();
+            this->set_motor_ref(ref);
+            this->pid_control_to_motor();
+        }
+    
+        // 保留原 Motor_C610 特有的实现
+        virtual void update(uint8_t can_rx_data[]) override {
+            this->dt = DWT_GetDeltaT(&this->DWT_CNT);
+            update_angle(can_rx_data);
+            update_speed(can_rx_data);
+            update_speed_aps();
+            update_motor_acceleration();
+            update_current(can_rx_data);
+            update_temperature(can_rx_data);
+        }
+    
+        // 合并原 RM_Common 的 CAN 处理
+        virtual void CanMsg_Process(CAN_Tx_Instance_t &CAN_TxMsg) override {
+            motor_constraint(&(this->Out), 
+                           static_cast<int16_t>(-max_current),
+                           static_cast<int16_t>(max_current));
+            prepareCANMsg(CAN_TxMsg, this->Out);
+        }
+    
+    protected:
+        // 合并原 RM_Common 的更新方法
+        /* 更新电机角度函数 */
+        inline virtual void update_angle(uint8_t can_rx_data[]) override {
+            encoder = (uint16_t)(can_rx_data[0] << 8 | can_rx_data[1]);
+            if(encoder_is_init) {   
+                int16_t delta_encoder = encoder - last_encoder;
+    
+                if(delta_encoder < -4096) round_cnt++;
+                else if(delta_encoder > 4096) round_cnt--;
+    
+                int32_t total_encoder = round_cnt * 8192 + encoder - encoder_offset;
+                angle = static_cast<float>(total_encoder) / encoder_angle_ratio / motor_reduction_ratio;
+            } else {
+                encoder_offset = encoder;
+                encoder_is_init = true;
+            }
+            last_encoder = encoder;
+        }
+    
+        /* 更新电机转子速度函数 */
+        inline virtual void update_speed(uint8_t can_rx_data[]) override {
+            if(this->if_reduction == -1) {
+                speed = (int16_t)(can_rx_data[2] << 8 | can_rx_data[3]) / motor_reduction_ratio;
+            } else if(this->if_reduction == 1) {
+                speed = (int16_t)(can_rx_data[2] << 8 | can_rx_data[3]);
+            } else {
+                speed = (int16_t)(can_rx_data[2] << 8 | can_rx_data[3]) / motor_reduction_ratio;
+            }
+        }
+        inline virtual void update_speed_aps() override
+        {
+            this->last_speed_aps = this->speed_aps;
+            this->speed_aps = this->alpha * this->speed* RPM_PER_MIN_2_ANGLE_PER_SEC + (1 - this->alpha) * this->temp_last_speed_aps;
+            this->temp_last_speed_aps =  this->speed_aps;
+        }
+        /* 更新电机实际电流值 */
+        inline void update_current(uint8_t can_rx_data[]) override
+        {
+            this->motor_current = (int16_t)(can_rx_data[4]<<8 | can_rx_data[5]);        
+        }
+        /* 更新电机温度函数 */
+        inline void update_temperature(uint8_t can_rx_data[]) override
+        {
+            this->motor_temperature = (int8_t)can_rx_data[6];
+        }
+        /* 更新电机加速度函数 */
+        inline void update_motor_acceleration()
+        {
+            this->motor_acceleration = ((this->speed_aps - this->last_speed_aps)*DEGREE_2_RAD / this->dt)*this->alpha + (1 - this->alpha)*this->temp_last_motor_acceleration;
+            this->temp_last_motor_acceleration = this->motor_acceleration;
+        }
+    
+    private:
+        // 合并原 RM_Common 的专用方法
+        void prepareCANMsg(CAN_Tx_Instance_t &CAN_TxMsg, int16_t current_out) const {
+            CAN_TxMsg.tx_id = can_tx_for_motor.tx_id;
+            CAN_TxMsg.tx_len = 8;
+            CAN_TxMsg.tx_mailbox = can_tx_for_motor.tx_mailbox;
+            CAN_TxMsg.isExTid = can_tx_for_motor.isExTid;
+            CAN_TxMsg.can_handle = can_tx_for_motor.can_handle;
+            CAN_TxMsg.can_tx_buff[ID * 2 - 2] = (uint8_t)(current_out >> 8) & 0xff;
+            CAN_TxMsg.can_tx_buff[ID * 2 - 1] = (uint8_t)current_out & 0xff;
+        }
+        // 保留原 C630 特有的电流转换逻辑
+        virtual int16_t aps_to_current(float &input_ref)  {
+            return static_cast<int16_t>(input_ref * (10000.0f / 10000.0f));
+        }
+    };
+
+
 #endif
 
 

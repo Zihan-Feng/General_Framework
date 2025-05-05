@@ -92,9 +92,10 @@ Motor_Control_Setting_t m2006_control_instance = {
     .motor_working_status = MOTOR_ENABLED,
 };
 
-Motor_C610 m2006[1] = {Motor_C610(1, m2006_rx_instance, m2006_tx_instance,
-                                  m2006_control_instance, -1)};
-
+// Motor_C610 m2006[1] = {Motor_C610(1, m2006_rx_instance, m2006_tx_instance,
+//                                   m2006_control_instance, -1)};
+Motor_C630 m2006[1] = {Motor_C630(1, m2006_rx_instance, m2006_tx_instance,
+                                   m2006_control_instance, 10000,-1)};
 #endif
 
 #ifdef TEST_SYSTEM_GM6020

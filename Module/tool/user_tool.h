@@ -16,6 +16,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "ccmram.h"
+#include <stdbool.h>
 
 enum
 {
