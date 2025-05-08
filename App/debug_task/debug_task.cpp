@@ -21,7 +21,7 @@
 #include "vofa.h"
 #include "xbox.h"
 #include "pathplanning.h"
-
+#include "encoder.h"
 #ifdef CHASSIS_TO_DEBUG
 #include "pid_controller.h"
 #endif
@@ -40,6 +40,11 @@ pub_Xbox_Data xbox_data_pub;
 VOFA_Instance_t *vofa_instance = NULL;
 Uart_Instance_t *vofa_uart_instance = NULL;
 extern uart_package_t VOFA_uart_package;
+Encoder_Instance_t *encoder_instance = NULL;
+Uart_Instance_t *encoder_uart_instance = NULL;
+
+extern uart_package_t Encoder_uart_package;
+
 int speed_2006 = 0;
 int mad_speed = 0;
 bool RESET_M2006_STATE = false;
@@ -190,9 +195,9 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
   int count = 0;
   SCurvePlanner planner(
     0.0, 2000.0,    // 起始/目标位置 (mm)
-    100.0, 200.0,     // 起始/结束速度 (mm/s)
+    0.0, 0.0,     // 起始/结束速度 (mm/s)
     1000.0, 5000.0,  // 最大速度/加速度 (mm/s, mm/s²)
-    10000.0, 3.0   // 加加速度/期望时间 (mm/s³, s)
+    10000.0, 3   // 加加速度/期望时间 (mm/s³, s)
 );
 #endif
 
@@ -209,6 +214,17 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
     vTaskDelete(NULL);
   }
 #endif
+
+encoder_uart_instance = Uart_Register(&Encoder_uart_package);
+if (encoder_uart_instance == NULL) {
+  LOGERROR("encoder uart register failed!");
+  vTaskDelete(NULL);
+} 
+encoder_instance = Encoder_init(encoder_uart_instance, 10);
+if (encoder_instance == NULL) {
+  LOGERROR("encoder init failed!");
+  vTaskDelete(NULL);
+}
 
 #ifdef DEBUG_GO1_MOTOR
   go1_motor[0].GO_Motor_No_Tarque_Ctrl();
@@ -279,6 +295,8 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
     vofa_instance->vofa_task(vofa_instance);
     LOGINFO("debug task is running!");
 #endif
+encoder_instance->Encoder_task(encoder_instance);
+LOGINFO("encoder task is running!");
 
 #ifdef TEST_SYSTEM_TURNER
     float32_t sine_value = arm_sin_f32(phase);
@@ -311,21 +329,23 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #ifdef TEST_SYSTEM_M2006
     // m2006[0].Motor_Ctrl(sine);
     // Motor_SendMsgs(m2006);
-    count++;
-    if (count <= 400) {
-      planner.reset();
-      m2006[0].Motor_Ctrl(100);
-      Motor_SendMsgs(m2006);
-    } else if (count > 400 && count <= 800) {
-      v_test = planner.update(dt);
-      m2006[0].Motor_Ctrl(v_test);
-      Motor_SendMsgs(m2006);
-    } else if (count > 800 && count <= 1200) {
-      m2006[0].Motor_Ctrl(0);
-      Motor_SendMsgs(m2006);
-    } else {
-      count = 0;
-    }
+    // count++;
+    // if (count <= 400) {
+    //   planner.reset();
+    //   m2006[0].Motor_Ctrl(0);
+    //   Motor_SendMsgs(m2006);
+    // } else if (count > 400 && count <= 800) {
+    //   v_test = planner.update(dt);
+    //   m2006[0].Motor_Ctrl(v_test);
+    //   Motor_SendMsgs(m2006);
+    // } else if (count > 800 && count <= 1200) {
+    //   m2006[0].Motor_Ctrl(0);
+    //   Motor_SendMsgs(m2006);
+    // } else {
+    //   count = 0;
+    // }
+    m2006[0].Motor_Ctrl(speed_2006);
+    Motor_SendMsgs(m2006);
 #endif
 
 #ifdef TEST_SYSTEM_GM6020

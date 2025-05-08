@@ -81,6 +81,7 @@ extern TIM_HandleTypeDef htim2;
 extern Uart_Instance_t *action_uart_instance;
 extern Uart_Instance_t *vofa_uart_instance;
 extern Uart_Instance_t *xbox_uart_instance;
+extern Uart_Instance_t *encoder_uart_instance;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -289,6 +290,7 @@ void USART1_IRQHandler(void)
   HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
   // Uart_Receive_Handler(vofa_uart_instance);
+  Uart_Receive_Handler(encoder_uart_instance);
   /* USER CODE END USART1_IRQn 1 */
 }
 

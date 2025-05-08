@@ -366,7 +366,7 @@ class Motor_C630 : public Motor {
             if(this->if_reduction == 1) {
                 this->motor_reduction_ratio = 1;
             } else if(this->if_reduction == -1) {
-                this->motor_reduction_ratio = 36;
+                this->motor_reduction_ratio = 19;
             } else {
                 this->motor_reduction_ratio = reduction_ratio;
             }
@@ -509,7 +509,7 @@ class Motor_C630 : public Motor {
         }
         // 保留原 C630 特有的电流转换逻辑
         virtual int16_t aps_to_current(float &input_ref)  {
-            return static_cast<int16_t>(input_ref * (10000.0f / 10000.0f));
+            return static_cast<int16_t>(input_ref * (16384.0f/20000.0f));
         }
     };
 

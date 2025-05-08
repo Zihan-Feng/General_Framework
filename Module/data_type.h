@@ -66,4 +66,9 @@ typedef struct {
 
 } pub_Xbox_Data;
 
+typedef struct {
+  uint8_t data[4];
+  uint32_t   distance;
+} pub_Encoder_Data;
+
 #pragma pack()
