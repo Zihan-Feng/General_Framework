@@ -27,7 +27,7 @@ extern "C"{
 #include "topics.h"
 #include "data_type.h"
 /*-----------------------------------macro------------------------------------*/
-
+extern int32_t Encoder_count_;
 /*----------------------------------typedef-----------------------------------*/
 typedef struct
 {

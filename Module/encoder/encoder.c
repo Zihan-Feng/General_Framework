@@ -35,8 +35,8 @@ union Encoder
     uint8_t data[4];
     uint32_t   Encoder_conut;
 }Encoder_data;
-
-
+int32_t Encoder_count_ = 0;
+uint32_t Encoder_last_count = 0;
 Encoder_Instance_t* Encoder_init(Uart_Instance_t *Encoder_uart_instance,uint32_t queue_length)
 {
     if(Encoder_uart_instance == NULL)
@@ -180,6 +180,8 @@ uint8_t Encoder_Get_Data(uint8_t *data,pub_Encoder_Data *Encoder_Data)
     // }
 
     Encoder_Data->distance = Encoder_data.Encoder_conut/4096*0.01;
+    Encoder_count_ = Encoder_data.Encoder_conut;
+    
     memset(data,0,10);    
     return 1;
 }

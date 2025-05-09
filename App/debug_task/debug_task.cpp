@@ -47,6 +47,7 @@ extern uart_package_t Encoder_uart_package;
 
 int speed_2006 = 0;
 int mad_speed = 0;
+int32_t motor_pos = 0;
 bool RESET_M2006_STATE = false;
 #ifdef TEST_VESC
 
@@ -248,15 +249,55 @@ if (encoder_instance == NULL) {
     }
 #ifdef TEST_VESC
     count++;
-
     if (xbox_data_pub.btnY)
-      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_12, GPIO_PIN_SET);
+    {
+      motor_pos += 500;
+    }
+    if (xbox_data_pub.btnA)
+    {
+      motor_pos -= 500;
+    }
+    if (xbox_data_pub.btnLB)
+    {
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+    }
     else
-      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_12, GPIO_PIN_RESET);
+    {
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+    }
+    if (xbox_data_pub.btnB)
+    {
+      if(Encoder_count_ < motor_pos)
+      {
+        vesc[0].Rpm_Control(-200);
+      }
+      else
+      {
+        vesc[0].Rpm_Control(0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+      }
+    }
+    else
+    {
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+      if (Encoder_count_ > 20000)
+      {
+        vesc[0].Rpm_Control(200);
+      }
+      else if (Encoder_count_ > 15000)
+      {
+        vesc[0].Rpm_Control(130); 
+      }
+      else
+      {
+        vesc[0].Rpm_Control(0);
+      }
 
-    vesc[0].Rpm_Control(ratio * xbox_data_pub.trigLT);
-    vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
-    vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
+    }
+
+    // vesc[0].Rpm_Control(speed_2006);
+    // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
+    // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
     COMMON_Motor_SendMsgs(vesc);
 
 #endif
