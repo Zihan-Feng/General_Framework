@@ -120,7 +120,7 @@ protected:
 
     float target_rpm; //目标转速
     uint32_t brake_current=6000;//刹车电流
-    uint8_t motor_polse = 7;//极对数
+    uint8_t motor_polse = 21;//极对数
 
     // VESC控制id指令枚举
     typedef enum {

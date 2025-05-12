@@ -195,7 +195,8 @@ uint8_t GO_M8010::GO_Motor_Damping_Ctrl(float k_dampping) {
   return 0;
 }
 
-uint8_t GO_M8010::GO_Motor_No_Tarque_Ctrl() {
+uint8_t GO_M8010::
+GO_Motor_No_Tarque_Ctrl() {
   // 判断当前的数据中K_pos和K_spd是不是0，不是的话就需要重新发送Kpos 和 Kspd
   if (ABS(this->real_ref_data.K_P - 0) > 0.0000001 ||
       ABS(this->real_ref_data.K_W - 0) > 0.0000001) {

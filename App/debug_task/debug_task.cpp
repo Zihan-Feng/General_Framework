@@ -99,10 +99,31 @@ CAN_Tx_Instance_t VESC_tx_instance3 = {
 
 Motor_Control_Setting_t VESC_motor_ctrl = {0};
 
+PID_t VESC_pid = {
+  .Kp = 1,
+  .Ki = 0,
+  .Kd = 0,
+  .MaxOut = 10000,
+  .IntegralLimit = 3000,
+  .DeadBand = 100,
+  .CoefA = 0,
+  .CoefB = 0,
+  .Output_LPF_RC = 0,
+  .Derivative_LPF_RC = 0,
+  .OLS_Order = 0,
+  .Improve = OutputFilter | Trapezoid_Intergral | Integral_Limit | Derivative_On_Measurement, 
+};
+
 VESC vesc[1] = {
     VESC(1, VESC_rx_instance1, VESC_tx_instance1, VESC_motor_ctrl, 0, 1)};
 
 extern Motor_C620 chassis_motor[4];
+  double v_now = 0.0;
+  double last_v = 0.0;
+  double a_now = 0.0;
+  double last_a = 0.0;
+  double j_now = 0.0;
+  uint32_t target__ = 130000; // 目标位置cm
 #endif
 
 #ifdef TEST_DM
@@ -177,6 +198,7 @@ float32_t phase_increment = 2 * PI * frequency / sample_rate;
 float32_t phase = 0.0f;
 float ref_temp = 0;
 float speed_aps = 0;
+
 #endif
 
 #ifdef DEBUG_GO1_MOTOR
@@ -194,13 +216,20 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 
 #ifdef TEST_SYSTEM_TURNER
   int count = 0;
+  
   SCurvePlanner planner(
-    0.0, 2000.0,    // 起始/目标位置 (mm)
-    0.0, 0.0,     // 起始/结束速度 (mm/s)
-    1000.0, 5000.0,  // 最大速度/加速度 (mm/s, mm/s²)
-    10000.0, 3   // 加加速度/期望时间 (mm/s³, s)
+    0.0, 600,    // 起始/目标位置 (cm)
+    0.0, 0.0,     // 起始/结束速度 (rpm)
+    780.0, 10000.0,  // 最大速度/加速度 
+    100000.0, 1   // 加加速度/期望时间s
 );
+
+  double dt = 0.01; // 采样周期
 #endif
+
+#ifdef TEST_VESC
+  PID_Init(&VESC_pid);
+#endif 
 
 #ifdef VOFA_TO_DEBUG
   /* vofa设备创建 */
@@ -231,10 +260,10 @@ if (encoder_instance == NULL) {
   go1_motor[0].GO_Motor_No_Tarque_Ctrl();
   if (!have_start)
     vTaskDelay(5);
-  go1_cur_pos = go1_motor[0].real_cur_data.Pos;
-  go1_cur_spe = go1_motor[0].real_cur_data.W;
-  debug_pos = go1_cur_pos;
-  debug_spe = go1_cur_spe;
+    go1_cur_pos = go1_motor[0].real_cur_data.Pos;
+    go1_cur_spe = go1_motor[0].real_cur_data.W;
+    debug_pos = go1_cur_pos;
+    debug_spe = go1_cur_spe;
 #endif
 
   publish_data xbox_;
@@ -247,16 +276,18 @@ if (encoder_instance == NULL) {
     if (xbox_.len != -1) {
       xbox_data_pub = *(pub_Xbox_Data *)xbox_.data;
     }
+    // go1_cur_pos = go1_motor[0].real_cur_data.Pos;
+    // go1_cur_spe = go1_motor[0].real_cur_data.W;
 #ifdef TEST_VESC
     count++;
-    if (xbox_data_pub.btnY)
-    {
-      motor_pos += 500;
-    }
-    if (xbox_data_pub.btnA)
-    {
-      motor_pos -= 500;
-    }
+    // if (xbox_data_pub.btnY)
+    // {
+    //   motor_pos += 500;
+    // }
+    // if (xbox_data_pub.btnA)
+    // {
+    //   motor_pos -= 500;
+    // }
     if (xbox_data_pub.btnLB)
     {
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
@@ -265,40 +296,74 @@ if (encoder_instance == NULL) {
     {
       HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
     }
+    // if (xbox_data_pub.btnB)
+    // {
+    //   if(Encoder_count_ < motor_pos)
+    //   {
+        // v_test = planner.update(dt);
+        // vesc[0].Rpm_Control(-v_test);
+    //   }
+    //   else
+    //   {
+    //     vesc[0].Rpm_Control(0);
+    //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+    //   }
+    // }
+    // else
+    // {
+    //   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    //   if (Encoder_count_ > 20000)
+    //   {
+    //     vesc[0].Rpm_Control(780);
+    //   }
+    //   else if (Encoder_count_ > 16000)
+    //   {
+    //     vesc[0].Rpm_Control(130); 
+    //   }
+    //   else
+    //   {
+    //     vesc[0].Rpm_Control(0);
+    //   }
+
+    // }
+    // v_now = (Encoder_count_-Encoder_last_count);
+    // v_test = -PID_Calculate(&VESC_pid,Encoder_count_ , 130000);
     if (xbox_data_pub.btnB)
     {
-      if(Encoder_count_ < motor_pos)
-      {
-        vesc[0].Rpm_Control(-200);
-      }
-      else
-      {
-        vesc[0].Rpm_Control(0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-      }
+        v_test = planner.update(dt);
+        // vesc[0].Rpm_Control(-v_test);
     }
+    else if (xbox_data_pub.btnA)
+    {
+      planner.reset(Encoder_count_);
+    }
+    else if (xbox_data_pub.btnY)
+    {
+      vesc[0].Rpm_Control(-780);
+    }
+    // else if (xbox_data_pub.btnA)
+    // {
+    //   vesc[0].Rpm_Control(780);
+    // }
+    // else if(xbox_data_pub.btnB)
+    // {
+    //   vesc[0].Cur_Control(v_test);
+    // }
     else
     {
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-      if (Encoder_count_ > 20000)
-      {
-        vesc[0].Rpm_Control(200);
-      }
-      else if (Encoder_count_ > 15000)
-      {
-        vesc[0].Rpm_Control(130); 
-      }
-      else
-      {
-        vesc[0].Rpm_Control(0);
-      }
-
+      vesc[0].Rpm_Control(0);
     }
-
+    // last_v = v_now;
+    // v_now = vesc[0].speed;
+    // last_a = a_now;
+    // a_now = (v_now - last_v) / dt;
+    // j_now = (a_now - last_a) / dt;
+    // v_test = planner.update(dt);
     // vesc[0].Rpm_Control(speed_2006);
     // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
     COMMON_Motor_SendMsgs(vesc);
+    Encoder_last_count = Encoder_count_;
 
 #endif
 #ifdef TEST_SYSTEM_M2006
@@ -347,7 +412,7 @@ LOGINFO("encoder task is running!");
     if (phase >= 2 * PI) {
       phase -= 2 * PI;
     }
-    double dt = 0.01; // 采样周期
+
     
 #ifdef TEST_SYSTEM_M3508
     count++;
@@ -412,15 +477,35 @@ LOGINFO("encoder task is running!");
 #endif
 
 #ifdef DEBUG_GO1_MOTOR
-    if (xbox_data_pub.btnDirUp) {
-      debug_pos += 0.005;
-      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
-    } else if (xbox_data_pub.btnDirDown) {
-      debug_pos -= 0.005;
-      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
-    } else if (xbox_data_pub.btnB) {
+    // if (xbox_data_pub.btnY) {
+    //   debug_pos += 0.01;
+    //   // debug_pos = go1_cur_pos + 1.1;
+    // } else if (xbox_data_pub.btnA) {
+    //   debug_pos -= 0.01;
+    // } 
+    if (xbox_data_pub.btnDirUp)
+    {
+      debug_pos = go1_cur_pos + 2.91;
+    }
+    if (xbox_data_pub.btnDirDown)
+    {
+      debug_pos = go1_cur_pos + 0.05;
+    }
+    if (xbox_data_pub.btnB) {
       go1_motor->stop_the_motor();
     }
+    if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
+      {
+         debug_kp = 0.15;
+         debug_kd =0.02;
+         go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+      }
+      else{
+      debug_kp = 3;
+      debug_kd =0.08;
+      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+      }
+    
 
     // if (debug <= 5000 || debug >= 10000) {
     // go1_motor[0].GO_Motor_Speed_Ctrl(5, 0.05);

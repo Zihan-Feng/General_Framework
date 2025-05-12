@@ -42,6 +42,7 @@ class SCurvePlanner {
         double t_; // 当前时间
         bool initialized_;    // 初始化标志
     
+        double calculateVelocityLimit(double q_total, double a_max__ ,double j_max__);
         void calculateTimingParameters(double desired_time);
 
     
@@ -67,8 +68,9 @@ class SCurvePlanner {
         }
         
         // 重置规划器
-        void reset() {
+        void reset(double q_start_offset) {
             t_ = 0.0;
+            q0_ += q_start_offset;
         }
 };
 

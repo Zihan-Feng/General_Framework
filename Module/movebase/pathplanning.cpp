@@ -13,12 +13,19 @@
  */
 #include "pathplanning.h"
 
+double SCurvePlanner::calculateVelocityLimit(double q_total, double a_max__ ,double j_max__)
+{
+    return sqrt((2*j_max__*a_max__*q_total)/(j_max__ + a_max__));
+}
 void SCurvePlanner::calculateTimingParameters(double desired_time) 
 {
     double initial_v_max = v_max_;
     double initial_a_max = a_max_;
+    double v_limit = 0.0;
     // 迭代参数调整逻辑（基于网页9、10的S曲线时间参数化原理）
     for(int iter=0; iter<100; iter++){
+        v_limit = calculateVelocityLimit(q1_-q0_, a_max_, j_max_);
+        v_max_ = fmin(v_max_, v_limit*1.05);
         // 加速段时间计算
         if((v_max_ - v0_)*j_max_ < a_max_*a_max_) {
             Tj1_ = sqrt((v_max_ - v0_)/j_max_);
@@ -42,28 +49,21 @@ void SCurvePlanner::calculateTimingParameters(double desired_time)
             - 0.5*Td_*(1 + v1_/v_max_);
         
         // 时间调整策略（网页9的动态参数调整）
-        if(Tv_ < 0){
+        if(Tv_ < -1e-6){
             Tv_ = 0;
             int count = 0;
-            while(Ta_ < 2*Tj1_ || Td_ < 2*Tj2_){
-                a_max_ *= 0.9;
-                Tj1_ = a_max_/j_max_;
-                Ta_ = Tj1_ + (v_max_ - v0_)/a_max_;
-                Tj2_ = a_max_/j_max_;
-                Td_ = Tj2_ + (v_max_ - v1_)/a_max_;
-                count++;
-                if(count > 100) return;
-            }
+            v_max_ = fmin(v_max_, calculateVelocityLimit(q1_-q0_, a_max_, j_max_));
+            continue;
         }
         
         // 检查总时间收敛
         double current_time = Ta_ + Tv_ + Td_;
-        if(fabs(current_time - desired_time) < 1e-6) break;
+        if(fabs(current_time - desired_time) < 1e-3) break;
         
         // 调整策略
         if(current_time < desired_time){
-            if(Tv_ > 0) v_max_ = fmax(v_max_*0.95,(q1_-q0_)/desired_time);
-            else a_max_ = fmax(a_max_*0.9,initial_a_max*0.1);
+            v_max_ = fmax(v_max_*0.95,(q1_-q0_)/desired_time);
+            a_max_ = fmax(a_max_*0.95,initial_a_max*0.1);
         } else {
             v_max_ = fmin(initial_v_max, v_max_*1.05);
             a_max_ = fmin(initial_a_max,a_max_*1.05);
