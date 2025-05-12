@@ -53,6 +53,67 @@ osThreadId_t Chassis_TaskHandle;
 #ifdef TEST_SYSTEM_M2006
 
 /* 系统辨识调试使用 */
+#ifdef TEST_SWERVE
+CAN_Tx_Instance_t m2006_tx_instance_1 = {
+    .can_handle = &hcan1,
+    .isExTid = 0,
+    .tx_mailbox = 0,
+    .tx_id = 0x200,
+    .tx_len = 8,
+    .can_tx_buff = {0},
+};
+
+CAN_Rx_Instance_t m2006_rx_instance_1 = {
+    .can_handle = &hcan1,
+    .RxHeader = {0},
+    .rx_len = 8,
+    .rx_id = 0x201,
+    .can_rx_buff = {0},
+};
+CAN_Tx_Instance_t m2006_tx_instance_2 = {
+    .can_handle = &hcan1,
+    .isExTid = 0,
+    .tx_mailbox = 0,
+    .tx_id = 0x200,
+    .tx_len = 8,
+    .can_tx_buff = {0},
+};
+
+CAN_Rx_Instance_t m2006_rx_instance_2 = {
+    .can_handle = &hcan1,
+    .RxHeader = {0},
+    .rx_len = 8,
+    .rx_id = 0x202,
+    .can_rx_buff = {0},
+};
+Motor_Control_Setting_t m2006_control_instance = {
+    .motor_controller_setting = {
+        .angle_PID = {
+        .Kp = 1,
+        .Ki = 0,
+        .Kd = 0,
+        .MaxOut = 10000,
+        .IntegralLimit = 3000,
+        .DeadBand = 10,
+        .CoefA = 0,
+        .CoefB = 0,
+        .Output_LPF_RC = 0,
+        .Derivative_LPF_RC = 0,
+        .OLS_Order = 0,
+        .Improve = OutputFilter | Trapezoid_Intergral | Integral_Limit | Derivative_On_Measurement, 
+        },
+        .pid_ref = 0,
+    },
+    .outer_loop_type = ANGLE_LOOP,
+    .inner_loop_type = ANGLE_LOOP,
+    .motor_is_reverse_flag = MOTOR_DIRECTION_NORMAL,
+    .motor_working_status = MOTOR_ENABLED,
+};
+Motor_C630 m2006[2] = {Motor_C630(1, m2006_rx_instance_1, m2006_tx_instance_1,
+                                   m2006_control_instance,10000, -1),
+                       Motor_C630(2, m2006_rx_instance_2, m2006_tx_instance_2,
+                                   m2006_control_instance,10000, -1)};
+#else
 CAN_Tx_Instance_t m2006_tx_instance = {
     .can_handle = &hcan1,
     .isExTid = 0,
@@ -96,6 +157,7 @@ Motor_Control_Setting_t m2006_control_instance = {
 //                                   m2006_control_instance, -1)};
 Motor_C630 m2006[1] = {Motor_C630(1, m2006_rx_instance, m2006_tx_instance,
                                    m2006_control_instance, 10000,-1)};
+#endif
 #endif
 
 #ifdef TEST_SYSTEM_GM6020

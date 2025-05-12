@@ -114,8 +114,10 @@ PID_t VESC_pid = {
   .Improve = OutputFilter | Trapezoid_Intergral | Integral_Limit | Derivative_On_Measurement, 
 };
 
-VESC vesc[1] = {
-    VESC(1, VESC_rx_instance1, VESC_tx_instance1, VESC_motor_ctrl, 0, 1)};
+VESC vesc[3] = {
+    VESC(1, VESC_rx_instance1, VESC_tx_instance1, VESC_motor_ctrl, 0, 1),
+    VESC(2, VESC_rx_instance2, VESC_tx_instance2, VESC_motor_ctrl, 0, 1),
+    VESC(3, VESC_rx_instance3, VESC_tx_instance3, VESC_motor_ctrl, 0, 1)};
 
 extern Motor_C620 chassis_motor[4];
   double v_now = 0.0;
@@ -159,7 +161,7 @@ extern Motor_GM6020 gm6020[1];
 #endif
 
 #ifdef TEST_SYSTEM_M2006
-extern Motor_C630 m2006[1];
+extern Motor_C630 m2006[2];
 #endif
 
 float wheel_v = 0;
@@ -280,6 +282,9 @@ if (encoder_instance == NULL) {
     // go1_cur_spe = go1_motor[0].real_cur_data.W;
 #ifdef TEST_VESC
     count++;
+#ifdef TEST_SWERVE
+
+#else
     // if (xbox_data_pub.btnY)
     // {
     //   motor_pos += 500;
@@ -362,8 +367,9 @@ if (encoder_instance == NULL) {
     // vesc[0].Rpm_Control(speed_2006);
     // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
-    COMMON_Motor_SendMsgs(vesc);
     Encoder_last_count = Encoder_count_;
+#endif
+    COMMON_Motor_SendMsgs(vesc);
 
 #endif
 #ifdef TEST_SYSTEM_M2006
@@ -497,12 +503,12 @@ LOGINFO("encoder task is running!");
     if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
       {
          debug_kp = 0.15;
-         debug_kd =0.02;
+         debug_kd = 0.02;
          go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
       }
       else{
       debug_kp = 3;
-      debug_kd =0.08;
+      debug_kd = 0.08;
       go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
       }
     

@@ -97,6 +97,9 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
     }
     case 0x202: {
       chassis_motor[1].update(can_instance->can_rx_buff);
+#ifdef TEST_SYSTEM_M2006
+      m2006[1].update(can_instance->can_rx_buff);
+#endif
       break;
     }
     case 0x203: {
