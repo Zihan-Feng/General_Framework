@@ -37,6 +37,9 @@ pub_Control_Data debug_pid;
 Subscriber *xbox_data;
 pub_Xbox_Data xbox_data_pub;
 
+Subscriber *ros_upper_level;
+pub_Upper_level_Control upper_level_data_pub;
+
 VOFA_Instance_t *vofa_instance = NULL;
 Uart_Instance_t *vofa_uart_instance = NULL;
 extern uart_package_t VOFA_uart_package;
@@ -49,6 +52,14 @@ int speed_2006 = 0;
 int mad_speed = 0;
 int32_t motor_pos = 0;
 bool RESET_M2006_STATE = false;
+float vx = 0.0;
+float vy = 0.0;
+float w = 0.0;
+float angle_1 = 0.0;
+float angle_2 = 0.0;
+float v_1 = 0.0;
+float v_2 = 0.0;
+float r_ = 0.163;
 #ifdef TEST_VESC
 
 int count = 0;
@@ -212,12 +223,12 @@ float go1_cur_pos = 0;
 float go1_cur_spe = 0;
 #endif
 double v_test = 0.0;
+int count = 0;
 __attribute((noreturn)) void Debug_Task(void *argument) {
   portTickType currentTime;
   currentTime = xTaskGetTickCount();
 
 #ifdef TEST_SYSTEM_TURNER
-  int count = 0;
   
   SCurvePlanner planner(
     0.0, 600,    // 起始/目标位置 (cm)
@@ -270,6 +281,8 @@ if (encoder_instance == NULL) {
 
   publish_data xbox_;
   xbox_data = register_sub("xbox", 1);
+  publish_data ros_upper_level_control_;
+  ros_upper_level = register_sub("ros_upper_level_control", 1);
   uint16_t ratio = 8000 / 1024;
   uint16_t ratio1 = 5000 / 1024;
 
@@ -278,12 +291,41 @@ if (encoder_instance == NULL) {
     if (xbox_.len != -1) {
       xbox_data_pub = *(pub_Xbox_Data *)xbox_.data;
     }
+    ros_upper_level_control_ = ros_upper_level->getdata(ros_upper_level);
+    if (ros_upper_level_control_.len != -1) {
+      upper_level_data_pub = *(pub_Upper_level_Control *)ros_upper_level_control_.data;
+    }
+    count++;
     // go1_cur_pos = go1_motor[0].real_cur_data.Pos;
     // go1_cur_spe = go1_motor[0].real_cur_data.W;
 #ifdef TEST_VESC
-    count++;
 #ifdef TEST_SWERVE
-
+    if (ABS(xbox_data_pub.joyLVert-32768) < 4000)vy = 0;
+    else vy = -(xbox_data_pub.joyLVert-32768)/32768.0*3;
+    if (ABS(xbox_data_pub.joyLHori-32768) < 4000)vx = 0;
+    else vx = (xbox_data_pub.joyLHori-32768)/32768.0*3;
+    if (ABS(xbox_data_pub.joyRHori-32768) < 4000)w = 0;
+    else w = (xbox_data_pub.joyRHori-32768)/32768.0*3;
+    angle_1 = atan2(vx,vy+w*r_)*180/PI;//front_wheel_angle = front_wheel_angle > M_PI_2 ? front_wheel_angle - M_PI : front_wheel_angle < -M_PI_2 ? front_wheel_angle + M_PI : front_wheel_angle;
+    v_1 = sqrt(vx*vx+(vy+w*r_)*(vy+w*r_));
+    // if (ABS(angle_1) > 90)
+    // {
+    //   angle_1 = angle_1 > 90 ? angle_1 - 180 : angle_1 + 180;
+    //   v_1 = -v_1;
+    // }
+    angle_2 = atan2(vx,vy-w*r_)*180/PI;
+    v_2 = sqrt(vx*vx+(vy-w*r_)*(vy-w*r_));
+    // if (ABS(angle_2) > 90)
+    // {
+    //   angle_2 = angle_2 > 90 ? angle_2 - 180 : angle_2 + 180;
+    //   v_2 = -v_2;
+    // }
+    // m2006[0].Motor_Ctrl(angle_1);
+    // m2006[1].Motor_Ctrl(angle_2);
+    // Motor_SendMsgs(m2006);
+    // vesc[0].Rpm_Control(v_1*500);
+    // vesc[1].Rpm_Control(v_2*500);
+    // COMMON_Motor_SendMsgs(vesc);
 #else
     // if (xbox_data_pub.btnY)
     // {
@@ -368,8 +410,8 @@ if (encoder_instance == NULL) {
     // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
     Encoder_last_count = Encoder_count_;
-#endif
     COMMON_Motor_SendMsgs(vesc);
+#endif
 
 #endif
 #ifdef TEST_SYSTEM_M2006
@@ -456,8 +498,8 @@ LOGINFO("encoder task is running!");
     // } else {
     //   count = 0;
     // }
-    m2006[0].Motor_Ctrl(speed_2006);
-    Motor_SendMsgs(m2006);
+    // m2006[0].Motor_Ctrl(speed_2006);
+    // Motor_SendMsgs(m2006);
 #endif
 
 #ifdef TEST_SYSTEM_GM6020

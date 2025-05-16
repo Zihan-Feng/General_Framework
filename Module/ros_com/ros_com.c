@@ -15,7 +15,7 @@
 
 static uint8_t ROSCom_Rtos_init(ROS_Com_Instance_t* ros_instance,uint32_t queue_length);
 
-uint8_t ros_uart_buffer[29];
+uint8_t ros_uart_buffer[33];
 
 
 ROS_Com_Instance_t *ros_instance;
@@ -23,7 +23,7 @@ ROS_Com_Instance_t *ros_instance;
 uart_package_t ros_uart_package = {
     .uart_handle = &huart1,
     .rx_buffer = ros_uart_buffer,
-    .rx_buffer_size = 29,
+    .rx_buffer_size = 33,
     .uart_callback = ROSCom_RxCallback_Fun,
 };
 Uart_Instance_t *ros_uart_instance;
@@ -41,13 +41,18 @@ union roscom_rx
     uint8_t data[4];// 6个float + 2个帧头 + 2个帧尾 + 1crc
     float value;// 6个数据位
 }roscom_data_rx[6];
+uint8_t roscom_data_rx_add[4] = {0};
 
 // 全局下的tx联合体
-union roscom_tx
-{
-    uint8_t data[6*4];
-    float value[6];
-}roscom_data_tx;
+#pragma pack(1) // 1字节对齐
+union roscom_tx {
+    uint8_t data[28];  // 总大小28字节
+    struct {
+        float value[6];     // 前24字节（6×4）
+        uint8_t value_2[4]; // 后4字节
+    } parts;
+} roscom_data_tx;
+#pragma pack()
 
 
 uint8_t ROS_Communication_Init()
@@ -61,15 +66,15 @@ uint8_t ROS_Communication_Init()
     }
 
     /* 挂载uart串口接口 */
-    ros_uart_instance = Uart_Register(&ros_uart_package);
-    if(ros_uart_instance == NULL)
-    {
-        LOGERROR("ros uart instance init failed!");
-        return 0;
-    }
-    ros_instance->uart_instance = ros_uart_instance;
+    // ros_uart_instance = Uart_Register(&ros_uart_package);
+    // if(ros_uart_instance == NULL)
+    // {
+    //     LOGERROR("ros uart instance init failed!");
+    //     return 0;
+    // }
+    // ros_instance->uart_instance = ros_uart_instance;
 
-    /* 挂载iwdg接口 */    
+    // /* 挂载iwdg接口 */    
     ros_iwdg_instance = IWDG_Register(&ros_iwdg_config);
     if(ros_iwdg_instance == NULL)
     {
@@ -133,14 +138,14 @@ static uint8_t ROSCom_Rtos_init(ROS_Com_Instance_t* ros_instance,uint32_t queue_
 
 uint8_t ROS_GetData(uint8_t *data,uint16_t data_len)
 {
-    if(data == NULL || data_len != 29)// 如果长度小于29，那么容易溢出访问数组
+    if(data == NULL || data_len != 33)// 如果长度小于33，那么容易溢出访问数组
     {
         LOGERROR("ros data is NULL!");
         return 0;
     }
     if(data[0] != HEAD_0 && data[1] != HEAD_1)// 检查帧头
         return 0;
-    if(data[27] != END_0 && data[28] != END_1)// 检查帧尾
+    if(data[31] != END_0 && data[32] != END_1)// 检查帧尾
         return 0;
 
     for(size_t i = 0;i < 4;i++)
@@ -151,19 +156,25 @@ uint8_t ROS_GetData(uint8_t *data,uint16_t data_len)
         roscom_data_rx[3].data[i] = data[14+i];
         roscom_data_rx[4].data[i] = data[18+i];
         roscom_data_rx[5].data[i] = data[22+i];
+        roscom_data_rx_add[i] = data[26+i];
     }
 
-    if(data[26] != serial_get_crc8_value(data,26))// 检查crc
+    if(data[30] != serial_get_crc8_value(data,30))// 检查crc
     {
         memset(roscom_data_rx,0,sizeof(roscom_data_rx));
+        memset(roscom_data_rx_add,0,sizeof(roscom_data_rx_add));
         return 0;
     }
-    ros_instance->data_get[0] = roscom_data_rx[0].value;
-    ros_instance->data_get[1] = roscom_data_rx[1].value;
-    ros_instance->data_get[2] = roscom_data_rx[2].value;
-    ros_instance->data_get[3] = roscom_data_rx[3].value;
-    ros_instance->data_get[4] = roscom_data_rx[4].value;
-    ros_instance->data_get[5] = roscom_data_rx[5].value;
+    ros_instance->data_get_1[0] = roscom_data_rx[0].value;
+    ros_instance->data_get_1[1] = roscom_data_rx[1].value;
+    ros_instance->data_get_1[2] = roscom_data_rx[2].value;
+    ros_instance->data_get_1[3] = roscom_data_rx[3].value;
+    ros_instance->data_get_1[4] = roscom_data_rx[4].value;
+    ros_instance->data_get_1[5] = roscom_data_rx[5].value;
+    ros_instance->data_get_2[0] = roscom_data_rx_add[0];
+    ros_instance->data_get_2[1] = roscom_data_rx_add[1];
+    ros_instance->data_get_2[2] = roscom_data_rx_add[2];
+    ros_instance->data_get_2[3] = roscom_data_rx_add[3];
     return 1;
 }
 
@@ -236,19 +247,20 @@ uint8_t IWDG_For_ROSCOM_Rx(void *device)
 
 
 // ROS发送函数，组包
-uint8_t ROSCom_SendData(float *data)
+uint8_t ROSCom_SendData(float *data,uint8_t *data_2)
 {
-    uint8_t temp_data[29];
+    uint8_t temp_data[33];
     memset(temp_data, 0, sizeof(temp_data));
 
-    temp_data[0] = HEAD_0;temp_data[1] = HEAD_1;temp_data[27] = END_0;temp_data[28] = END_1;
+    temp_data[0] = HEAD_0;temp_data[1] = HEAD_1;temp_data[31] = END_0;temp_data[32] = END_1;
 
     for(size_t i = 0;i < 6;i++)
-        roscom_data_tx.value[i] = data[i];
-    
-    memcpy(&temp_data[2], roscom_data_tx.data, 24);
+        roscom_data_tx.parts.value[i] = data[i];
+    for(size_t i = 0;i < 4;i++)
+        roscom_data_tx.parts.value_2[i] = data_2[i];
+    memcpy(&temp_data[2], roscom_data_tx.data, 28);
     // crc校验
-    temp_data[26] = serial_get_crc8_value(temp_data,26);
+    temp_data[30] = serial_get_crc8_value(temp_data,30);
     
     uint8_t transmit_result = CDC_Transmit_FS(temp_data, sizeof(temp_data));
     if (transmit_result != USBD_OK)

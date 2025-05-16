@@ -27,8 +27,7 @@
  */
 #include "com_config.h"
 #include "topics.h"
-
-
+int count_ros = 0;
 extern GO_M8010 go1_motor[1];
 
 osThreadId_t CAN1_Send_TaskHandle;
@@ -291,12 +290,12 @@ __attribute((noreturn)) void ROSCOM_Task(void *argument) {
   portTickType currentTime;
   currentTime = xTaskGetTickCount();
 
-  uint8_t task_flag = 0;
   if (ROS_Communication_Init() != 1) {
     LOGERROR("ros com failed!"); // 初始化失败，直接自杀
     vTaskDelete(NULL);
   }
   /* ros接收到信息向其他任务发布信息的发布者初始化 */
+#ifdef TRY_AUTO_CONTROL
   publish_data temp_data;
   pub_Control_Data ros_twist;
   Publisher *twist_pub = register_pub("ros_serial_pub");
@@ -311,7 +310,7 @@ __attribute((noreturn)) void ROSCOM_Task(void *argument) {
       start_rev_data = *(pub_Control_Data *)cmd_data.data;
       task_flag = start_rev_data.ctrl;
     }
-    ros_serial_fsm(task_flag);
+    // ros_serial_fsm(task_flag);
     if (ROSCOM_Task_Function(ros_instance)) // 解包得到数据
     {
       ros_twist.linear_x = ros_instance->data_get[0];
@@ -323,6 +322,25 @@ __attribute((noreturn)) void ROSCOM_Task(void *argument) {
     }
     vTaskDelayUntil(&currentTime, 1);
   }
+#else
+  publish_data temp_data;
+  pub_Upper_level_Control ros_control;
+  Publisher *ros_control_pub = register_pub("ros_upper_level_control");
+  for (;;) {
+    count_ros++;
+    // ROSCom_SendData(send_test, send_test_2);
+    if (ROSCOM_Task_Function(ros_instance)) // 解包得到数据
+    {
+      ros_control.shoot = ros_instance->data_get_2[0];
+      ros_control.go1_pos = ros_instance->data_get_2[1];
+      ros_control.band_pos = ros_instance->data_get_1[0];
+      temp_data.data = (uint8_t *)&ros_control;
+      temp_data.len = sizeof(pub_Upper_level_Control);
+      ros_control_pub->publish(ros_control_pub, temp_data); // 发布上层控制指令
+    }
+    vTaskDelayUntil(&currentTime, 10);
+  }
+#endif
 }
 
 enum {
@@ -333,12 +351,13 @@ enum {
 
 static void ros_serial_fsm(uint8_t _flag) {
   float send[6] = {0};
+  uint8_t send_2[4] = {0};
   // ros通讯设备状态机
   switch (_flag) {
   case ASK_FOR_REQUEST: {
     /* 发送请求指令 */
     send[0] = 1;
-    ROSCom_SendData(send);
+    ROSCom_SendData(send,send_2);
     osDelay(1000); // 1s发一次，等待回复
     break;
   }

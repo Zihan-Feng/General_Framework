@@ -62,4 +62,10 @@ typedef struct
     uint8_t if_rev_ros;// 是否接收ros上位机数据
 }pub_Control_Data;
 
+typedef struct
+{
+    uint8_t shoot;
+    uint8_t go1_pos;
+    float band_pos;
+}pub_Upper_level_Control;
 #pragma pack()

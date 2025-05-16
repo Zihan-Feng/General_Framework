@@ -804,7 +804,7 @@ __attribute((noreturn)) void Chassis_Task(void *argument) {
         /* 什么都不用做？ */
         break;
       case AUTO_CONTROL:
-
+#ifdef TRY_AUTO_CONTROL
         /* 自动驾驶建立在机器人坐标系下运动 */
         User_Chassis.Chassis_Status = ROBOT_CHASSIS;
         User_Chassis.Moving_Status = FREE;
@@ -819,6 +819,7 @@ __attribute((noreturn)) void Chassis_Task(void *argument) {
           User_Chassis.Ref_RoboSpeed.linear_y = ros_twist.linear_y;
           User_Chassis.Ref_RoboSpeed.omega = ros_twist.Omega;
         }
+#endif
         break;
       }
     }

@@ -111,7 +111,7 @@ void osTaskInit(void)
     .stack_size = 128*4 ,
     .priority = (osPriority_t) osPriorityNormal,
     };
-    // ROSCOM_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
+    ROSCOM_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
 
 }
 

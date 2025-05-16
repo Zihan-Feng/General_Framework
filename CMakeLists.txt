@@ -100,7 +100,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     XBOX_CONTROL
     TEST_SYSTEM_TURNER
     # TEST_SYSTEM_M3508 
-    TEST_SYSTEM_M2006
+    # TEST_SYSTEM_M2006
     # TEST_SYSTEM_GM6020 
     DISABLE_LOG_SYSTEM
     # DISABLE_SYSVIEW_SYSTEM
@@ -109,11 +109,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # TEST_YAW_ADJUST
     # DEBUG_GO1_MOTOR
     RUBBER_ANGLE_OPTIMIZE # 使用舵向劣弧优化
-    TRY_AUTO_CONTROL # 使用自动控制
-    TEST_VESC
+    # TRY_AUTO_CONTROL # 使用自动控制
+    # TEST_VESC
     # TEST_ONE_SWERVE
     # TEST_DM
-    TEST_SWERVE
+    # TEST_SWERVE
 )
 
 # Add linked libraries

@@ -34,7 +34,7 @@ extern "C"{
 #define HEAD_1          0xFB
 #define END_0           0xFD
 #define END_1           0xFE 
-#define MAX_DATA_LENGTH   36
+#define MAX_DATA_LENGTH   40
 
 #define ROSCOM_QUEUE_LENGTH    10
 
@@ -46,8 +46,10 @@ typedef struct
     Uart_Instance_t *uart_instance;
     rtos_for_module_t *rtos_for_roscom;
     IWDG_Instance_t *iwdg_instance;
-    float data_send[6];
-    float data_get[6]; 
+    float data_send_1[6];
+    uint8_t data_send_2[4];
+    float data_get_1[6];
+    uint8_t data_get_2[4];
 }ROS_Com_Instance_t;
 
 /*----------------------------------variable----------------------------------*/
@@ -64,7 +66,7 @@ uint8_t ROSCOM_Task_Function(void *ros_instance);
 
 uint8_t IWDG_For_ROSCOM_Rx(void *device);
 
-uint8_t ROSCom_SendData(float *data);
+uint8_t ROSCom_SendData(float *data, uint8_t *data_2);
 
 uint8_t ROSCOM_DeInit(void *ros_instance);
 
