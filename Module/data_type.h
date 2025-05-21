@@ -35,6 +35,8 @@ typedef struct {
   float Ki;
   float Kd;
   float ref;
+  float i_limit;
+  float shoot_flag;
 } pub_vofa_pid;
 
 typedef struct {
@@ -68,7 +70,7 @@ typedef struct {
 
 typedef struct {
   uint8_t data[4];
-  uint32_t   distance;
+  float   distance;
 } pub_Encoder_Data;
 
 #pragma pack()

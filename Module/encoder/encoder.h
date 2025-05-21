@@ -28,7 +28,6 @@ extern "C"{
 #include "data_type.h"
 /*-----------------------------------macro------------------------------------*/
 extern int32_t Encoder_count_;
-extern int32_t Encoder_last_count;
 /*----------------------------------typedef-----------------------------------*/
 typedef struct
 {

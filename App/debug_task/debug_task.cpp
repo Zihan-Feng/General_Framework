@@ -27,6 +27,8 @@
 #endif
 // extern Motor_C610 m2006;
 
+#define Simeple_times 15
+
 osThreadId_t Debug_TaskHandle;
 
 uint8_t debug_buffer[9];
@@ -40,6 +42,9 @@ pub_Xbox_Data xbox_data_pub;
 Subscriber *ros_upper_level;
 pub_Upper_level_Control upper_level_data_pub;
 
+Subscriber *encorder_shoot;
+pub_Encoder_Data encorder_data_pub_shoot;
+
 VOFA_Instance_t *vofa_instance = NULL;
 Uart_Instance_t *vofa_uart_instance = NULL;
 extern uart_package_t VOFA_uart_package;
@@ -47,6 +52,8 @@ Encoder_Instance_t *encoder_instance = NULL;
 Uart_Instance_t *encoder_uart_instance = NULL;
 
 extern uart_package_t Encoder_uart_package;
+
+uint8_t Wait_stability(float err);
 
 int speed_2006 = 0;
 int mad_speed = 0;
@@ -62,73 +69,74 @@ float v_2 = 0.0;
 float r_ = 0.163;
 #ifdef TEST_VESC
 
-int count = 0;
+
 CAN_Rx_Instance_t VESC_rx_instance1 = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .RxHeader = {0},
     .rx_len = 8,
     .can_rx_buff = {0},
 };
 
 CAN_Tx_Instance_t VESC_tx_instance1 = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .isExTid = 1,
     .tx_mailbox = 0,
     .tx_len = 8,
     .can_tx_buff = {0},
 };
 
-CAN_Rx_Instance_t VESC_rx_instance2 = {
-    .can_handle = &hcan2,
-    .RxHeader = {0},
-    .rx_len = 8,
-    .can_rx_buff = {0},
-};
+// CAN_Rx_Instance_t VESC_rx_instance2 = {
+//     .can_handle = &hcan2,
+//     .RxHeader = {0},
+//     .rx_len = 8,
+//     .can_rx_buff = {0},
+// };
 
-CAN_Tx_Instance_t VESC_tx_instance2 = {
-    .can_handle = &hcan2,
-    .isExTid = 1,
-    .tx_mailbox = 0,
-    .tx_len = 8,
-    .can_tx_buff = {0},
-};
+// CAN_Tx_Instance_t VESC_tx_instance2 = {
+//     .can_handle = &hcan2,
+//     .isExTid = 1,
+//     .tx_mailbox = 0,
+//     .tx_len = 8,
+//     .can_tx_buff = {0},
+// };
 
-CAN_Rx_Instance_t VESC_rx_instance3 = {
-    .can_handle = &hcan2,
-    .RxHeader = {0},
-    .rx_len = 8,
-    .can_rx_buff = {0},
-};
+// CAN_Rx_Instance_t VESC_rx_instance3 = {
+//     .can_handle = &hcan2,
+//     .RxHeader = {0},
+//     .rx_len = 8,
+//     .can_rx_buff = {0},
+// };
 
-CAN_Tx_Instance_t VESC_tx_instance3 = {
-    .can_handle = &hcan2,
-    .isExTid = 1,
-    .tx_mailbox = 0,
-    .tx_len = 8,
-    .can_tx_buff = {0},
-};
+// CAN_Tx_Instance_t VESC_tx_instance3 = {
+//     .can_handle = &hcan2,
+//     .isExTid = 1,
+//     .tx_mailbox = 0,
+//     .tx_len = 8,
+//     .can_tx_buff = {0},
+// };
 
 Motor_Control_Setting_t VESC_motor_ctrl = {0};
 
-PID_t VESC_pid = {
-  .Kp = 1,
-  .Ki = 0,
-  .Kd = 0,
-  .MaxOut = 10000,
-  .IntegralLimit = 3000,
-  .DeadBand = 100,
-  .CoefA = 0,
-  .CoefB = 0,
-  .Output_LPF_RC = 0,
-  .Derivative_LPF_RC = 0,
-  .OLS_Order = 0,
-  .Improve = OutputFilter | Trapezoid_Intergral | Integral_Limit | Derivative_On_Measurement, 
-};
+  PID_t vesc_pos_shoot_pid={
+    .Kp = 34060,
+    .Ki = 21000,
+    .Kd = 0,
+    .MaxOut = 7000,
+    .IntegralLimit = 120,
+    .DeadBand = 0,
+    .CoefA = 0,
+    .CoefB = 0,
+    .Output_LPF_RC = 0,
+    .Derivative_LPF_RC = 0,
+    .Improve = Integral_Limit,
+  };
+  uint8_t cnt = 0;
 
-VESC vesc[3] = {
+VESC vesc[1] = {
     VESC(1, VESC_rx_instance1, VESC_tx_instance1, VESC_motor_ctrl, 0, 1),
-    VESC(2, VESC_rx_instance2, VESC_tx_instance2, VESC_motor_ctrl, 0, 1),
-    VESC(3, VESC_rx_instance3, VESC_tx_instance3, VESC_motor_ctrl, 0, 1)};
+    // VESC(2, VESC_rx_instance2, VESC_tx_instance2, VESC_motor_ctrl, 0, 1),
+    // VESC(3, VESC_rx_instance3, VESC_tx_instance3, VESC_motor_ctrl, 0, 1)
+};
 
 extern Motor_C620 chassis_motor[4];
   double v_now = 0.0;
@@ -137,6 +145,17 @@ extern Motor_C620 chassis_motor[4];
   double last_a = 0.0;
   double j_now = 0.0;
   uint32_t target__ = 130000; // 目标位置cm
+
+float Target_Pos = 0.0f;
+enum state_t {
+    WAITE,   // 等待装载或准备就绪
+    MOVE,    // 正在移动至装载位置
+    READY,   // 装载到位，等待射球指令
+    SHOOT,   // 射击中
+    RELOAD   // 射击完成后返回原点
+} state;
+  uint8_t shoot_flag = 0;
+  
 #endif
 
 #ifdef TEST_DM
@@ -180,16 +199,17 @@ float ref = 0;
 
 #ifdef DEBUG_GO1_MOTOR
 extern uint8_t have_start;
+uint8_t go1_motor_flag = 0;
 
 CAN_Rx_Instance_t go1_rx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .RxHeader = {0},
     .rx_len = 8,
     .can_rx_buff = {0},
 };
 
 CAN_Tx_Instance_t go1_tx_instance = {
-    .can_handle = &hcan2,
+    .can_handle = &hcan1,
     .isExTid = 1,
     .tx_mailbox = 0,
     .tx_len = 8,
@@ -241,7 +261,8 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #endif
 
 #ifdef TEST_VESC
-  PID_Init(&VESC_pid);
+  state = WAITE;
+  PID_Init(&vesc_pos_shoot_pid);
 #endif 
 
 #ifdef VOFA_TO_DEBUG
@@ -283,10 +304,14 @@ if (encoder_instance == NULL) {
   xbox_data = register_sub("xbox", 1);
   publish_data ros_upper_level_control_;
   ros_upper_level = register_sub("ros_upper_level_control", 1);
+  publish_data encorder_data;
+  encorder_shoot = register_sub("Encoder_pub", 1);
   uint16_t ratio = 8000 / 1024;
   uint16_t ratio1 = 5000 / 1024;
 
   for (;;) {
+    encoder_instance->Encoder_task(encoder_instance);
+    LOGINFO("encoder task is running!");
     xbox_ = xbox_data->getdata(xbox_data);
     if (xbox_.len != -1) {
       xbox_data_pub = *(pub_Xbox_Data *)xbox_.data;
@@ -294,6 +319,10 @@ if (encoder_instance == NULL) {
     ros_upper_level_control_ = ros_upper_level->getdata(ros_upper_level);
     if (ros_upper_level_control_.len != -1) {
       upper_level_data_pub = *(pub_Upper_level_Control *)ros_upper_level_control_.data;
+    }
+    encorder_data = encorder_shoot->getdata(encorder_shoot);
+    if (encorder_data.len != -1) {
+      encorder_data_pub_shoot = *(pub_Encoder_Data *)encorder_data.data;
     }
     count++;
     // go1_cur_pos = go1_motor[0].real_cur_data.Pos;
@@ -335,14 +364,14 @@ if (encoder_instance == NULL) {
     // {
     //   motor_pos -= 500;
     // }
-    if (xbox_data_pub.btnLB)
-    {
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-    }
-    else
-    {
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
-    }
+    // if (xbox_data_pub.btnLB)
+    // {
+    //   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+    // }
+    // else
+    // {
+    //   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+    // }
     // if (xbox_data_pub.btnB)
     // {
     //   if(Encoder_count_ < motor_pos)
@@ -375,19 +404,19 @@ if (encoder_instance == NULL) {
     // }
     // v_now = (Encoder_count_-Encoder_last_count);
     // v_test = -PID_Calculate(&VESC_pid,Encoder_count_ , 130000);
-    if (xbox_data_pub.btnB)
-    {
-        v_test = planner.update(dt);
+    // if (xbox_data_pub.btnB)
+    // {
+    //     v_test = planner.update(dt);
         // vesc[0].Rpm_Control(-v_test);
-    }
-    else if (xbox_data_pub.btnA)
-    {
-      planner.reset(Encoder_count_);
-    }
-    else if (xbox_data_pub.btnY)
-    {
-      vesc[0].Rpm_Control(-780);
-    }
+    // }
+    // else if (xbox_data_pub.btnA)
+    // {
+    //   planner.reset(Encoder_count_);
+    // }
+    // else if (xbox_data_pub.btnY)
+    // {
+    //   vesc[0].Rpm_Control(-780);
+    // }
     // else if (xbox_data_pub.btnA)
     // {
     //   vesc[0].Rpm_Control(780);
@@ -396,10 +425,10 @@ if (encoder_instance == NULL) {
     // {
     //   vesc[0].Cur_Control(v_test);
     // }
-    else
-    {
-      vesc[0].Rpm_Control(0);
-    }
+    // else
+    // {
+    //   vesc[0].Rpm_Control(0);
+    // }
     // last_v = v_now;
     // v_now = vesc[0].speed;
     // last_a = a_now;
@@ -409,7 +438,60 @@ if (encoder_instance == NULL) {
     // vesc[0].Rpm_Control(speed_2006);
     // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
-    Encoder_last_count = Encoder_count_;
+    if (xbox_data_pub.btnLB) upper_level_data_pub.shoot = 1;
+    else upper_level_data_pub.shoot = 0;
+    if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = 18.3;
+    else upper_level_data_pub.band_pos = 0;
+    float err = 0.0f;
+    switch(state) {
+        case RELOAD:
+          Target_Pos = 0.0f;
+          // 归零完成后回到等待状态
+          if (encorder_data_pub_shoot.distance <= 0.002 && encorder_data_pub_shoot.distance >= -0.002) {
+              state = WAITE;
+          }
+          break;
+        case WAITE:
+            // 当处于等待状态时，接收新的装载位置并开始移动
+            if (upper_level_data_pub.band_pos > 0.01 && upper_level_data_pub.band_pos <= 30.0) {
+                Target_Pos = upper_level_data_pub.band_pos / 100.0f; // cm转m
+                state = MOVE;
+            }
+            break;
+
+        case MOVE:
+            // 确认到达目标位置（误差小于5mm）
+            err = Target_Pos - encorder_data_pub_shoot.distance;
+            if( 1 == Wait_stability(err))
+            {
+                state = READY;
+            }
+            break;
+
+        case READY:
+            // 接收到射球指令时激活射击机构
+            if (upper_level_data_pub.shoot == 1) {
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+                shoot_flag = 1;
+                
+            }
+            else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+                shoot_flag = 0;
+                state = SHOOT;
+            }
+            break;
+
+        case SHOOT:
+            // 立即释放射击信号并开始返回原点
+            state = RELOAD;
+            break;
+
+    }
+
+    // 始终执行PID控制
+    PID_Calculate(&vesc_pos_shoot_pid, encorder_data_pub_shoot.distance, Target_Pos);
+    vesc[0].Rpm_Control(vesc_pos_shoot_pid.Output);
     COMMON_Motor_SendMsgs(vesc);
 #endif
 
@@ -449,8 +531,7 @@ if (encoder_instance == NULL) {
     vofa_instance->vofa_task(vofa_instance);
     LOGINFO("debug task is running!");
 #endif
-encoder_instance->Encoder_task(encoder_instance);
-LOGINFO("encoder task is running!");
+
 
 #ifdef TEST_SYSTEM_TURNER
     float32_t sine_value = arm_sin_f32(phase);
@@ -530,29 +611,48 @@ LOGINFO("encoder task is running!");
     //   // debug_pos = go1_cur_pos + 1.1;
     // } else if (xbox_data_pub.btnA) {
     //   debug_pos -= 0.01;
-    // } 
-    if (xbox_data_pub.btnDirUp)
+    // }
+    if (upper_level_data_pub.go1_pos == 1 || upper_level_data_pub.go1_pos == 2) go1_motor_flag = 1;
+    else if (upper_level_data_pub.go1_pos == 3 || upper_level_data_pub.go1_pos == 4) go1_motor_flag = 2;
+    if (go1_motor_flag == 1)
     {
-      debug_pos = go1_cur_pos + 2.91;
-    }
-    if (xbox_data_pub.btnDirDown)
-    {
-      debug_pos = go1_cur_pos + 0.05;
-    }
-    if (xbox_data_pub.btnB) {
-      go1_motor->stop_the_motor();
-    }
-    if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
+      if (upper_level_data_pub.go1_pos == 1)
+      {
+        debug_pos = go1_cur_pos + 2.91;
+      }
+      else if (upper_level_data_pub.go1_pos == 2)
+      {
+        debug_pos = go1_cur_pos + 0.05;
+      }
+      // if (xbox_data_pub.btnB) {
+      //   go1_motor->stop_the_motor();
+      // }
+      if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
       {
          debug_kp = 0.15;
          debug_kd = 0.02;
          go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
       }
       else{
+        debug_kp = 3;
+        debug_kd = 0.08;
+        go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+      }
+    }
+    else if (go1_motor_flag == 2)
+    {
       debug_kp = 3;
       debug_kd = 0.08;
-      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+      if (upper_level_data_pub.go1_pos == 3)
+      {
+        debug_pos -= 0.01;
       }
+      else if (upper_level_data_pub.go1_pos == 4)
+      {
+        debug_pos += 0.01;
+      }
+      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+    }
     
 
     // if (debug <= 5000 || debug >= 10000) {
@@ -565,7 +665,55 @@ LOGINFO("encoder task is running!");
     //   debug++;
     // }
 #endif
-    vTaskDelayUntil(&currentTime, 10);
+    vTaskDelayUntil(&currentTime, 5);
     // vTaskDelay(5);
   }
+}
+enum Wait_stability_state{
+    Wait_Reach = 0,
+    Sampling = 1,
+    Check = 2,
+}wait_status;
+
+uint8_t Wait_stability(float err)
+{
+  static uint8_t cnt = 0;
+  static uint8_t acceptable_cnt = 0;
+  switch (wait_status)
+  {
+    case Wait_Reach:
+      if(err < 0.005 && err > -0.005)
+      {
+        LOGINFO("Reach at %d",HAL_GetTick());
+        wait_status = Sampling;
+        cnt = 0;
+        acceptable_cnt = 0;
+      }
+    break;
+    case Sampling:      
+      cnt++;
+      if(err < 0.005 && err > -0.005)
+      {
+        acceptable_cnt++;
+      }
+      if(cnt >= Simeple_times)
+      {
+        wait_status = Check;
+      }
+    break;
+    case Check:
+      wait_status = Wait_Reach;
+      float Ratio_valid_values = (float)acceptable_cnt / cnt;
+      if(Ratio_valid_values>0.8)
+      {
+        LOGINFO("Check passe at %d",HAL_GetTick());
+        return 1;
+      }
+      else
+      {
+        LOGINFO("Check failed at %d",HAL_GetTick());
+      }
+    break;
+  }
+  return 0;
 }
