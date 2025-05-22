@@ -31,7 +31,7 @@ extern QueueHandle_t CAN1_TxPort;
 extern QueueHandle_t CAN2_TxPort;
 
 /*-----------------------------------macro------------------------------------*/
-/* 注意这里的can queue size取决于你的can总线负载，如果发送跟不上数据的装载的话，需要适当增加这里的队列大小 */
+/* ע�������can queue sizeȡ�������can���߸��أ�������͸��������ݵ�װ�صĻ�����Ҫ�ʵ���������Ķ��д�С */
 #define CAN1_TX_QUEUE_SIZE      8
 #define CAN2_TX_QUEUE_SIZE      8
 

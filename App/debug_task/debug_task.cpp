@@ -70,6 +70,7 @@ float r_ = 0.163;
 #ifdef TEST_VESC
 
 
+
 CAN_Rx_Instance_t VESC_rx_instance1 = {
     .can_handle = &hcan1,
     .RxHeader = {0},
@@ -118,11 +119,11 @@ CAN_Tx_Instance_t VESC_tx_instance1 = {
 Motor_Control_Setting_t VESC_motor_ctrl = {0};
 
   PID_t vesc_pos_shoot_pid={
-    .Kp = 18020,
-    .Ki = 6545,
+    .Kp = 34060,
+    .Ki = 21000,
     .Kd = 0,
     .MaxOut = 7000,
-    .IntegralLimit = 700,
+    .IntegralLimit = 120,
     .DeadBand = 0,
     .CoefA = 0,
     .CoefB = 0,
@@ -440,12 +441,11 @@ if (encoder_instance == NULL) {
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
     if (xbox_data_pub.btnLB) upper_level_data_pub.shoot = 1;
     else upper_level_data_pub.shoot = 0;
-    if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = 22.3;
+    if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = 18.3;
     else upper_level_data_pub.band_pos = 0;
     float err = 0.0f;
     switch(state) {
         case RELOAD:
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
           Target_Pos = 0.0f;
           // 归零完成后回到等待状态
           if (encorder_data_pub_shoot.distance <= 0.002 && encorder_data_pub_shoot.distance >= -0.002) {
@@ -471,16 +471,16 @@ if (encoder_instance == NULL) {
 
         case READY:
             // 接收到射球指令时激活射击机构
-            // if (upper_level_data_pub.shoot == 1) {
+            if (upper_level_data_pub.shoot == 1) {
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-            //     shoot_flag = 1;
+                shoot_flag = 1;
                 
-            // }
-            // else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
-            //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-            //     shoot_flag = 0;
+            }
+            else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
+                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+                shoot_flag = 0;
                 state = SHOOT;
-            // }
+            }
             break;
 
         case SHOOT:

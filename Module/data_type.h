@@ -35,6 +35,8 @@ typedef struct {
   float Ki;
   float Kd;
   float ref;
+  float i_limit;
+  float shoot_flag;
 } pub_vofa_pid;
 
 typedef struct {
