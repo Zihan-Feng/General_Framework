@@ -28,6 +28,8 @@
 #include "com_config.h"
 #include "topics.h"
 int count_ros = 0;
+float send_test[6]={20.0,0,0,0,0,0};
+uint8_t send_test_2[4]={1,2,3,4};
 extern GO_M8010 go1_motor[1];
 
 osThreadId_t CAN1_Send_TaskHandle;
@@ -83,7 +85,7 @@ float motor_current = 0;
 
 static void ros_serial_fsm(uint8_t _flag);
 
-void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
+void CAN2_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
   if (can_instance->RxHeader.IDE == CAN_ID_STD) {
     switch (can_instance->RxHeader.StdId) {
 #ifdef USE_OMNI_CHASSIS
@@ -165,7 +167,7 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
 uint8_t have_start = 0;
 // 现在打算can2专控go1电机，当然也可以换上别的电机，只是暂时先用
 // can2可控制 go1 / VESC
-void CAN2_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
+void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
 
 #ifdef TEST_VESC
   uint8_t temp_vesc_id = can_instance->RxHeader.ExtId & 0xFF; // 解析电调ID

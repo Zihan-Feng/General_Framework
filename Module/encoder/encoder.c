@@ -14,12 +14,15 @@
  */
 #include "Encoder.h"
 
+#define ENCODER_BITS   18
+#define ENCODER_MAX    ((1 << ENCODER_BITS) - 1)
+#define ENCODER_HALF   (1 << (ENCODER_BITS - 1))
 
 static uint8_t Encoder_Get_Data(uint8_t *data,pub_Encoder_Data *Encoder_Data);
 
 static uint8_t Encoder_Rtos_Init(Encoder_Instance_t *Encoder_instance,uint32_t queue_length);
 
-
+static int32_t encoder_delta(uint32_t prev, uint32_t curr);
 uint8_t Encoder_rx_buffer[100];
 
 
@@ -36,7 +39,7 @@ union Encoder
     uint32_t   Encoder_conut;
 }Encoder_data;
 int32_t Encoder_count_ = 0;
-int32_t Encoder_last_count = 0;
+
 Encoder_Instance_t* Encoder_init(Uart_Instance_t *Encoder_uart_instance,uint32_t queue_length)
 {
     if(Encoder_uart_instance == NULL)
@@ -153,35 +156,48 @@ uint8_t Encoder_Task(void* Encoder_instance)
 
 uint8_t Encoder_Get_Data(uint8_t *data,pub_Encoder_Data *Encoder_Data)
 {
+    static uint32_t Encoder_last = 0;
+    static uint32_t Encoder_curt = 0;
+    static int32_t  delta = 0;
+    static uint8_t  package_len = 10;
     if(data == NULL)
     {
         LOGERROR("Encoder instance is NULL!");
         return 0;
     }
-    if(data[0] != 0xAB || data[1] != 0xCD)
+     if (data[0] != 0xAB || data[1] != 0xCD || data[9] != 0x3D)
     {
-        LOGERROR("header is wrong!");
+        //LOGERROR("Header or tail error in encoder data");
         return 0;
     }
-    uint8_t data_len = 0;
-    data_len = data[2];
-    if(10 != data_len)
+    uint8_t data_len = data[2];
+    uint8_t checksum_recv_NOR;//normal
+    uint8_t checksum_recv_XOR;//XOR
+    uint8_t checksum_calc_NOR;
+    uint8_t checksum_calc_XOR;
+    for(int i = 0; i < data_len; i++)
     {
-
+        checksum_calc_NOR += data[2+i];
+        checksum_calc_XOR ^= data[2+i];
     }
+    checksum_recv_NOR = data[2+data_len];
+    checksum_recv_XOR = data[2+data_len+1];
+
+    if(checksum_recv_NOR != checksum_calc_NOR
+    || checksum_recv_XOR != checksum_calc_XOR)
+    {
+        LOGWARNING("Encoder checksum error!");
+        return 0;
+    }
+    // ???????????
     Encoder_data.data[0] = data[4];
     Encoder_data.data[1] = data[3];
     Encoder_data.data[2] = data[6];
     Encoder_data.data[3] = data[5];
-    // if(data[7] != 0xD5 || data[8] != 0xD6)
-    // {
-    //     LOGERROR("tail is wrong!");
-    //     return 0;
-    // }
-
-    Encoder_Data->distance = Encoder_data.Encoder_conut/4096;//cm
-    Encoder_count_ = Encoder_data.Encoder_conut;
-    
+    Encoder_curt = Encoder_data.Encoder_conut;
+    delta = encoder_delta(Encoder_last, Encoder_curt);
+    Encoder_Data->distance += (float)delta / 4096 * 0.01;
+    Encoder_last = Encoder_curt;
     memset(data,0,10);    
     return 1;
 }
@@ -251,4 +267,13 @@ uint8_t Encoder_DeInit(void *Encoder_instance)
     temp_Encoder_instance = NULL;
     Encoder_instance = NULL;
     return 1;
+}
+static int32_t encoder_delta(uint32_t prev, uint32_t curr) {
+    int32_t delta = (int32_t)(curr - prev);
+    if (delta > ENCODER_HALF) {
+        delta -= ENCODER_MAX + 1;  // Wrap around
+    } else if (delta < -ENCODER_HALF) {
+        delta += ENCODER_MAX + 1;   // Wrap around
+    }
+    return delta;
 }
