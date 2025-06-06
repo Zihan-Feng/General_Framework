@@ -51,12 +51,14 @@ typedef struct {
   bool btnY;
   bool btnA;
   bool btnLB;
+  bool btnRB;
   uint16_t trigLT;
   bool btnDirUp;
   bool btnDirDown;
   bool btnDirLeft;
   bool btnDirRight;
   bool btnB;
+  bool btnX;
   uint16_t joyLHori;
   uint16_t joyLVert;
   uint16_t joyRHori;

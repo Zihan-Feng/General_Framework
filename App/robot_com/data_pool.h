@@ -66,6 +66,7 @@ typedef struct
 {
     uint8_t shoot;
     uint8_t go1_pos;
+    uint8_t cylinder;// 0:关闭 1:打开
     float band_pos;
 }pub_Upper_level_Control;
 #pragma pack()

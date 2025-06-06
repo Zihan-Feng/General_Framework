@@ -131,6 +131,19 @@ Motor_Control_Setting_t VESC_motor_ctrl = {0};
     .Derivative_LPF_RC = 0,
     .Improve = Integral_Limit,
   };
+    PID_t vesc_pos_reset_pid={
+    .Kp = 34060,
+    .Ki = 21000,
+    .Kd = 0,
+    .MaxOut = 7000,
+    .IntegralLimit = 120,
+    .DeadBand = 0.01,
+    .CoefA = 0,
+    .CoefB = 0,
+    .Output_LPF_RC = 0,
+    .Derivative_LPF_RC = 0,
+    .Improve = Integral_Limit,
+  };
   uint8_t cnt = 0;
 
 VESC vesc[1] = {
@@ -147,7 +160,7 @@ extern Motor_C620 chassis_motor[4];
   double j_now = 0.0;
   uint32_t target__ = 130000; // 目标位置cm
 
-float Target_Pos = 0.0f;
+float Target_Pos = 0.012f;
 enum state_t {
     WAITE,   // 等待装载或准备就绪
     MOVE,    // 正在移动至装载位置
@@ -156,7 +169,8 @@ enum state_t {
     RELOAD   // 射击完成后返回原点
 } state;
   uint8_t shoot_flag = 0;
-  
+  uint8_t shoot_count = 0;
+  float debug_band_pos = 0.0f;
 #endif
 
 #ifdef TEST_DM
@@ -236,7 +250,7 @@ float speed_aps = 0;
 #endif
 
 #ifdef DEBUG_GO1_MOTOR
-float debug_pos = 0.5;
+float debug_pos = 0.67;
 float debug_kp = 3;
 float debug_kd = 0.08;
 float debug_spe = 0;
@@ -264,6 +278,7 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #ifdef TEST_VESC
   state = WAITE;
   PID_Init(&vesc_pos_shoot_pid);
+  PID_Init(&vesc_pos_reset_pid);
 #endif 
 
 #ifdef VOFA_TO_DEBUG
@@ -439,16 +454,20 @@ if (encoder_instance == NULL) {
     // vesc[0].Rpm_Control(speed_2006);
     // vesc[1].Rpm_Control(ratio * xbox_data_pub.trigLT);
     // vesc[2].Rpm_Control(ratio1 * xbox_data_pub.trigLT);
-    if (xbox_data_pub.btnLB) upper_level_data_pub.shoot = 1;
-    else upper_level_data_pub.shoot = 0;
-    if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = 18.3;
-    else upper_level_data_pub.band_pos = 0;
+    // if (xbox_data_pub.btnLB) upper_level_data_pub.shoot = 1;
+    // else upper_level_data_pub.shoot = 0;
+    // if (xbox_data_pub.btnY) debug_band_pos += 0.01;
+    // else if (xbox_data_pub.btnB) debug_band_pos -= 0.01;
+    // if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = debug_band_pos;
+    // else upper_level_data_pub.band_pos = 0;
+    if (upper_level_data_pub.cylinder) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+    else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
     float err = 0.0f;
     switch(state) {
         case RELOAD:
-          Target_Pos = 0.0f;
+          Target_Pos = 0.012f;
           // 归零完成后回到等待状态
-          if (encorder_data_pub_shoot.distance <= 0.002 && encorder_data_pub_shoot.distance >= -0.002) {
+          if (encorder_data_pub_shoot.distance <= 0.016 && encorder_data_pub_shoot.distance >= 0.001) {
               state = WAITE;
           }
           break;
@@ -471,14 +490,23 @@ if (encoder_instance == NULL) {
 
         case READY:
             // 接收到射球指令时激活射击机构
-            if (upper_level_data_pub.shoot == 1) {
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-                shoot_flag = 1;
+            // if (upper_level_data_pub.shoot == 1) {
+            //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+            //     shoot_flag = 1;
                 
-            }
-            else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
+            // }
+            // else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
+            //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+            //     shoot_flag = 0;
+            //     state = SHOOT;
+            // }
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+            // shoot_flag = 1;
+            shoot_count++;
+            if (shoot_count == 50 /*upper_level_data_pub.shoot == 1 && shoot_flag == 1*/) {
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-                shoot_flag = 0;
+                // shoot_flag = 0;
+                shoot_count = 0;
                 state = SHOOT;
             }
             break;
@@ -491,8 +519,17 @@ if (encoder_instance == NULL) {
     }
 
     // 始终执行PID控制
-    PID_Calculate(&vesc_pos_shoot_pid, encorder_data_pub_shoot.distance, Target_Pos);
-    vesc[0].Rpm_Control(vesc_pos_shoot_pid.Output);
+    if (ABS(Target_Pos - 0.012f) < 0.0001f && state == WAITE) 
+    {
+      // PID_Calculate(&vesc_pos_reset_pid, encorder_data_pub_shoot.distance, Target_Pos);
+      // vesc[0].Rpm_Control(vesc_pos_reset_pid.Output);
+      vesc[0].Rpm_Control(0);
+    }
+    else 
+    {
+      PID_Calculate(&vesc_pos_shoot_pid, encorder_data_pub_shoot.distance, Target_Pos);
+      vesc[0].Rpm_Control(vesc_pos_shoot_pid.Output);
+    }
     COMMON_Motor_SendMsgs(vesc);
 #endif
 
@@ -613,25 +650,31 @@ if (encoder_instance == NULL) {
     // } else if (xbox_data_pub.btnA) {
     //   debug_pos -= 0.01;
     // }
+    // if (xbox_data_pub.btnDirUp) upper_level_data_pub.go1_pos = 1;
+    // else if (xbox_data_pub.btnDirDown) upper_level_data_pub.go1_pos = 2;
+    // else if (xbox_data_pub.btnDirLeft) upper_level_data_pub.go1_pos = 3;
+    // else if (xbox_data_pub.btnDirRight) upper_level_data_pub.go1_pos = 4;
+    // else upper_level_data_pub.go1_pos = 0;
     if (upper_level_data_pub.go1_pos == 1 || upper_level_data_pub.go1_pos == 2) go1_motor_flag = 1;
     else if (upper_level_data_pub.go1_pos == 3 || upper_level_data_pub.go1_pos == 4) go1_motor_flag = 2;
     if (go1_motor_flag == 1)
     {
       if (upper_level_data_pub.go1_pos == 1)
       {
-        debug_pos = go1_cur_pos + 2.91;
+        debug_pos = go1_cur_pos + 2.83;
       }
       else if (upper_level_data_pub.go1_pos == 2)
       {
-        debug_pos = go1_cur_pos + 0.05;
+        debug_pos = go1_cur_pos + 0.1;
       }
+      if (debug_pos > 4.2) debug_pos = 4.2;
       // if (xbox_data_pub.btnB) {
       //   go1_motor->stop_the_motor();
       // }
       if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
       {
-         debug_kp = 0.15;
-         debug_kd = 0.02;
+         debug_kp = 0.2;
+         debug_kd = 0.021;
          go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
       }
       else{
@@ -646,12 +689,13 @@ if (encoder_instance == NULL) {
       debug_kd = 0.08;
       if (upper_level_data_pub.go1_pos == 3)
       {
-        debug_pos -= 0.01;
+        debug_pos -= 0.005;
       }
       else if (upper_level_data_pub.go1_pos == 4)
       {
-        debug_pos += 0.01;
+        debug_pos += 0.005;
       }
+      if (debug_pos > 4.2) debug_pos = 4.2;
       go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
     }
     

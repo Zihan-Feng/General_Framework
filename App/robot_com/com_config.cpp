@@ -335,6 +335,7 @@ __attribute((noreturn)) void ROSCOM_Task(void *argument) {
     {
       ros_control.shoot = ros_instance->data_get_2[0];
       ros_control.go1_pos = ros_instance->data_get_2[1];
+      ros_control.cylinder = ros_instance->data_get_2[2];
       ros_control.band_pos = ros_instance->data_get_1[0];
       temp_data.data = (uint8_t *)&ros_control;
       temp_data.len = sizeof(pub_Upper_level_Control);
