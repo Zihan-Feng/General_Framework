@@ -22,6 +22,7 @@
 #include "can.h"
 #include "dma.h"
 #include "usart.h"
+#include "tim.h"
 #include "usb_device.h"
 #include "gpio.h"
 
@@ -107,7 +108,11 @@ int main(void)
   MX_UART4_Init();
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM9_Init();
+  MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_PWM_Init(&htim9);
+  HAL_TIM_PWM_Init(&htim12);
   __HAL_UART_DISABLE_IT(&huart2, UART_IT_RXNE);
   Robot_Init();
   cm_backtrace_init("CmBacktrace", HARDWARE_VERSION, SOFTWARE_VERSION);
