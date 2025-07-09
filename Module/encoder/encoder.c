@@ -1,10 +1,10 @@
 /**
  * @file Encoder.c
- * @author ZZT 
+ * @author ZZT，STHY
  * @brief 
  *        
- * @version 0.1
- * @date 2025-5-8
+ * @version 0.2
+ * @date 2025-6-24
  * 
  * @copyright Copyright (c) 2025
  * 
@@ -154,53 +154,95 @@ uint8_t Encoder_Task(void* Encoder_instance)
 }
 
 
-uint8_t Encoder_Get_Data(uint8_t *data,pub_Encoder_Data *Encoder_Data)
+uint8_t Encoder_Get_Data(uint8_t *data, pub_Encoder_Data *Encoder_Data)
 {
     static uint32_t Encoder_last = 0;
     static uint32_t Encoder_curt = 0;
     static int32_t  delta = 0;
-    static uint8_t  package_len = 10;
-    if(data == NULL)
-    {
+
+    if (data == NULL) {
         LOGERROR("Encoder instance is NULL!");
         return 0;
     }
-     if (data[0] != 0xAB || data[1] != 0xCD || data[9] != 0x3D)
-    {
-        //LOGERROR("Header or tail error in encoder data");
-        return 0;
-    }
-    uint8_t data_len = data[2];
-    uint8_t checksum_recv_NOR;//normal
-    uint8_t checksum_recv_XOR;//XOR
-    uint8_t checksum_calc_NOR;
-    uint8_t checksum_calc_XOR;
-    for(int i = 0; i < data_len; i++)
-    {
-        checksum_calc_NOR += data[2+i];
-        checksum_calc_XOR ^= data[2+i];
-    }
-    checksum_recv_NOR = data[2+data_len];
-    checksum_recv_XOR = data[2+data_len+1];
 
-    if(checksum_recv_NOR != checksum_calc_NOR
-    || checksum_recv_XOR != checksum_calc_XOR)
-    {
-        LOGWARNING("Encoder checksum error!");
+    // 1. 检查功能码
+    if (data[1] != 0x03) {
+        LOGERROR("Modbus function code error!");
         return 0;
     }
-    // ???????????
-    Encoder_data.data[0] = data[4];
-    Encoder_data.data[1] = data[3];
-    Encoder_data.data[2] = data[6];
-    Encoder_data.data[3] = data[5];
-    Encoder_curt = Encoder_data.Encoder_conut;
+
+    // 2. 获取字节数
+    uint8_t byte_count = data[2];
+    if (byte_count < 4) { 
+        LOGERROR("Modbus data length error!");
+        return 0;
+    }
+
+    // 3. CRC16校验
+    uint16_t crc_recv = (data[3 + byte_count+ 1] << 8) | data[3 + byte_count ];
+    uint16_t crc_calc = CRC16_Table(data, 3 + byte_count); // 此计算函数低位在前，高位在后！！！！
+    if (crc_recv != crc_calc) {
+        LOGWARNING("Modbus CRC error!");
+        return 0;
+    }
+
+    // 4. 解析编码器数据（高字节在前，低字节在后）
+    Encoder_curt = (data[3] << 24) | (data[4] << 16) | (data[5] << 8) | data[6];
+
     delta = encoder_delta(Encoder_last, Encoder_curt);
-    Encoder_Data->distance += (float)delta / 4096 * 0.01;
+    Encoder_Data->distance -= (float)delta / 4096 * 0.01;
+    
     Encoder_last = Encoder_curt;
-    memset(data,0,10);    
+
     return 1;
 }
+
+/**
+ * @brief 发送写0x0007寄存器命令（自动回传时间）
+ * @param uart_handle UART句柄
+ * @param addr 从站地址
+ * @param value 自动回传时间（0~65535，单位ms）
+ * @return 0失败，1成功
+ */
+uint8_t Encoder_Send_Write_0x0007(UART_HandleTypeDef *uart_handle, uint8_t addr, uint16_t value)
+{
+    uint8_t frame[8];
+    frame[0] = addr;
+    frame[1] = 0x06;
+    frame[2] = 0x00;                // 寄存器高字节
+    frame[3] = 0x07;                // 寄存器低字节
+    frame[4] = (value >> 8) & 0xFF; // 数值高字节
+    frame[5] = value & 0xFF;        // 数值低字节
+    uint16_t crc = CRC16_Table(frame, 6);
+    frame[6] = (crc >> 8) & 0xFF;   // CRC高字节
+    frame[7] = crc & 0xFF;          // CRC低字节
+
+    // 发送帧
+    if(HAL_UART_Transmit(uart_handle, frame, 8, 100) == HAL_OK)
+        return 1;
+    else
+        return 0;
+}
+
+/**
+ * @brief 解析写0x0007寄存器的回传响应
+ * @param data 回传数据指针
+ * @param len  数据长度
+ * @return 0失败，1成功
+ */
+uint8_t Encoder_Parse_Write_0x0007_Response(uint8_t *data, uint16_t len)
+{
+    if(len != 8) return 0;
+    // 功能码、寄存器地址、数值等应与发送一致
+    if(data[1] != 0x06) return 0;
+    if(data[2] != 0x00 || data[3] != 0x07) return 0;
+    // CRC校验
+    uint16_t crc_recv = (data[6] << 8) | data[7];
+    uint16_t crc_calc = CRC16_Table(data, 6);
+    if(crc_recv != crc_calc) return 0;
+    return 1;
+}
+
 
 
 uint8_t Encoder_Uart_Rx_Callback(void *uart_instance,uint16_t data_len)

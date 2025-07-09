@@ -18,6 +18,7 @@
 #include "robot_ins.h"
 #include "control_task.h"
 #include "debug_task.h"
+#include "shoot_task.h"
 
 /* module层接口头文件 */
 #include "soft_iwdg.h"
@@ -30,6 +31,7 @@ osThreadId_t IWDGTaskHandle;
 extern osThreadId_t CAN1_Send_TaskHandle;
 extern osThreadId_t CAN2_Send_TaskHandle;
 extern osThreadId_t Debug_TaskHandle;
+extern osThreadId_t Shoot_TaskHandle;
 extern osThreadId_t Chassis_TaskHandle;
 extern osThreadId_t Control_TaskHandle;
 extern osThreadId_t ROSCOM_TaskHandle;
@@ -40,10 +42,11 @@ void IWDGTask(void *argument);
 void CAN1_Send_Task(void *argument);
 void CAN2_Send_Task(void *argument);
 void Debug_Task(void *argument);
+void Shoot_Task(void *argument);
 void Chassis_Task(void *argument);
 void Control_Task(void *argument);
 void ROSCOM_Task(void *argument);
-
+void Encoder_Task(void *argument);
 /**
  * @brief os任务创建初始化函数
  * 
@@ -88,6 +91,15 @@ void osTaskInit(void)
     };
     Debug_TaskHandle = osThreadNew(Debug_Task, NULL, &DebugTaskHandle_attributes);
 #endif 
+
+#ifdef SHOOT_TASK_RUN
+    const osThreadAttr_t ShootTaskHandle_attributes = {
+    .name = "Shoot_TaskHandle",
+    .stack_size = 258*4 ,
+    .priority = (osPriority_t) osPriorityNormal,
+    };
+    Shoot_TaskHandle = osThreadNew(Shoot_Task, NULL, &ShootTaskHandle_attributes);
+#endif
 
 
 #ifdef CHASSIS_TO_DEBUG

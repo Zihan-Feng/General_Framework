@@ -33,8 +33,9 @@
 #include "robot_def.h"
 /* Bsp层头文件接口 */
 #include "bsp_log.h"
-
-
+#include <cm_backtrace.h>
+#define HARDWARE_VERSION               "V1.0.0"
+#define SOFTWARE_VERSION               "V0.1.0"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -109,6 +110,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   __HAL_UART_DISABLE_IT(&huart2, UART_IT_RXNE);
   Robot_Init();
+  cm_backtrace_init("CmBacktrace", HARDWARE_VERSION, SOFTWARE_VERSION);
   LOG_CLEAR();
   LOGINFO("FreeRTOS is Ready!\n");
 

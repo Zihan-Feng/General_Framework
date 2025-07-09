@@ -293,21 +293,30 @@ uint8_t Xbox_Publish() {
   return 1;
 }
 
-uint8_t Xbox_Uart_Rx_Callback(Uart_Instance_t *uart_instance,
-                              uint16_t data_len) {
+// uint8_t Xbox_Uart_Rx_Callback(Uart_Instance_t *uart_instance,
+//                               uint16_t data_len) {
 
-  if (uart_instance == NULL) {
+//   if (uart_instance == NULL) {
+//     LOGERROR("xbox uart_instance is NULL!");
+//     return 0;
+//   }
+//   // Uart_Instance_t *temp_uart_instance = (Uart_Instance_t*)uart_instance;
+//   // memcpy(aaa, temp_uart_instance->uart_package.rx_buffer,
+//   // sizeof(temp_uart_instance->uart_package.rx_buffer)); for (uint16_t i = 0; i
+//   // < data_len; i++)
+//   // {
+
+//   Xbox_Process(uart_instance->uart_package.rx_buffer[0]);
+//   // }
+//   return 0;
+
+// }
+uint8_t Xbox_Uart_Rx_Callback(void *uart_instance, uint16_t data_len) {
+  Uart_Instance_t *instance = (Uart_Instance_t *)uart_instance;
+  if (instance == NULL) {
     LOGERROR("xbox uart_instance is NULL!");
     return 0;
   }
-  // Uart_Instance_t *temp_uart_instance = (Uart_Instance_t*)uart_instance;
-  // memcpy(aaa, temp_uart_instance->uart_package.rx_buffer,
-  // sizeof(temp_uart_instance->uart_package.rx_buffer)); for (uint16_t i = 0; i
-  // < data_len; i++)
-  // {
-
-  Xbox_Process(uart_instance->uart_package.rx_buffer[0]);
-  // }
+  Xbox_Process(instance->uart_package.rx_buffer[0]);
   return 0;
-
 }

@@ -158,7 +158,7 @@ uint8_t Xbox_Process(uint8_t byte);
  * @param uart_instance 
  * @return uint8_t 
  */
-uint8_t Xbox_Uart_Rx_Callback(Uart_Instance_t *uart_instance, uint16_t data_len);
+uint8_t Xbox_Uart_Rx_Callback(void *uart_instance, uint16_t data_len) ;
 
 /**
  * @brief 判断按键是否为长按

@@ -107,13 +107,20 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     DEBUG_TASK_RUN 
     DEBUG_NO_TRACKING
     # TEST_YAW_ADJUST
-    DEBUG_GO1_MOTOR
+    # DEBUG_GO1_MOTOR
     RUBBER_ANGLE_OPTIMIZE # 使用舵向劣弧优化
     # TRY_AUTO_CONTROL # 使用自动控制
-    TEST_VESC
+    # TEST_VESC
+
     # TEST_ONE_SWERVE
     # TEST_DM
     # TEST_SWERVE
+    
+    SHOOT_VESC
+    SHOOT_TASK_RUN
+    # SHOOT_GO1_MOTOR
+    SHOOT_M3508
+    SHOOT_Flash_SAVE
 )
 
 # Add linked libraries

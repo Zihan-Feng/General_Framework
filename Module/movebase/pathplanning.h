@@ -72,6 +72,8 @@ class SCurvePlanner {
             t_ = 0.0;
             q0_ += q_start_offset;
         }
+
+        bool arrived();
 };
 
 

@@ -1,9 +1,9 @@
 /**
  * @file encoder.h
- * @author ZZT (2863861004@qq.com)
+ * @author ZZT (2863861004@qq.com),STHY
  * @brief 
- * @version 0.1
- * @date 2025-5-8
+ * @version 0.2
+ * @date 2025-6-25
  * 
  * @copyright Copyright (c) 2025
  * 
@@ -26,6 +26,7 @@ extern "C"{
 
 #include "topics.h"
 #include "data_type.h"
+#include "crc_util.h"
 /*-----------------------------------macro------------------------------------*/
 extern int32_t Encoder_count_;
 /*----------------------------------typedef-----------------------------------*/
@@ -61,7 +62,9 @@ Encoder_Instance_t* Encoder_init(Uart_Instance_t *Encoder_uart_instance,uint32_t
  */
 uint8_t Encoder_Task(void* Encoder_instance);
 
+uint8_t Encoder_Send_Write_0x0007(UART_HandleTypeDef *uart_handle, uint8_t addr, uint16_t value);
 
+uint8_t Encoder_Parse_Write_0x0007_Response(uint8_t *data, uint16_t len);
 
 
 /**

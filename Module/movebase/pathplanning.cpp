@@ -121,3 +121,9 @@ double SCurvePlanner::update(double dt)
     
     return v;
 }
+bool SCurvePlanner::arrived() {
+    if (t_ >= total_time_) {
+        return true;
+    }
+    return false;
+}

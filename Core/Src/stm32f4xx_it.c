@@ -26,7 +26,7 @@
 
 
 #include "bsp_usart.h"
-
+#include <cm_backtrace.h>
 
 #include "robot_ins.h"
 #include "debug_task.h"
@@ -81,7 +81,7 @@ extern TIM_HandleTypeDef htim2;
 extern Uart_Instance_t *action_uart_instance;
 extern Uart_Instance_t *vofa_uart_instance;
 extern Uart_Instance_t *xbox_uart_instance;
-extern Uart_Instance_t *encoder_uart_instance;
+extern Uart_Instance_t *encoder_uart_instance_shoot;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -101,14 +101,17 @@ void NMI_Handler(void)
   }
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
-
+extern void cm_backtrace_fault(uint32_t lr, uint32_t sp);
 /**
   * @brief This function handles Hard fault interrupt.
   */
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+  register uint32_t lr __asm("lr");   // 直接从 LR 寄存器读取
+  register uint32_t sp __asm("sp");   // 直接从 SP 寄存器读取
+  // 2. 调用 backtrace 函数（传递 LR 和 SP）
+  cm_backtrace_fault(lr, sp);
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -290,7 +293,7 @@ void USART1_IRQHandler(void)
   HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
   // Uart_Receive_Handler(vofa_uart_instance);
-  Uart_Receive_Handler(encoder_uart_instance);
+  Uart_Receive_Handler(encoder_uart_instance_shoot);
   /* USER CODE END USART1_IRQn 1 */
 }
 

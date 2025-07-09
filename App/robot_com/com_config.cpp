@@ -52,9 +52,13 @@ extern Motor_C630 m2006[1];
 // 舵向电机实例
 extern Motor_GM6020 rubber_motor[4];
 
-extern VESC vesc[3];
+extern VESC vesc[1];
 
 extern DM_motor dm[1];
+
+#ifdef SHOOT_M3508
+extern Motor_C630 pole_motor[2];
+#endif
 
 extern XBOX_Instance_t *XBOX_Instance;
 extern Uart_Instance_t *xbox_uart_instance;
@@ -88,7 +92,16 @@ static void ros_serial_fsm(uint8_t _flag);
 void CAN2_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
   if (can_instance->RxHeader.IDE == CAN_ID_STD) {
     switch (can_instance->RxHeader.StdId) {
-#ifdef USE_OMNI_CHASSIS
+#ifdef SHOOT_M3508
+    case 0x201: {
+      pole_motor[0].update(can_instance->can_rx_buff);
+      break;
+    }
+    case 0x202: {
+      pole_motor[1].update(can_instance->can_rx_buff);
+      break;
+    }
+#elif USE_OMNI_CHASSIS
     case 0x201: {
       chassis_motor[0].update(can_instance->can_rx_buff);
 #ifdef TEST_SYSTEM_M2006
@@ -169,7 +182,7 @@ uint8_t have_start = 0;
 // can2可控制 go1 / VESC
 void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
 
-#ifdef TEST_VESC
+#ifdef SHOOT_VESC
   uint8_t temp_vesc_id = can_instance->RxHeader.ExtId & 0xFF; // 解析电调ID
   uint16_t temp_vesc_flag =
       can_instance->RxHeader.ExtId >> 8; // 解析电调命令标识符
@@ -181,17 +194,17 @@ void CAN1_Rx_Callback(CAN_Rx_Instance_t *can_instance) {
       break;
     }
     case 2: {
-      vesc[1].update(can_instance->can_rx_buff);
+      // vesc[1].update(can_instance->can_rx_buff);
       break;
     }
     case 3: {
-      vesc[2].update(can_instance->can_rx_buff);
+      // vesc[2].update(can_instance->can_rx_buff);
       break;
     }
     }
   }
 #endif
-#ifdef DEBUG_GO1_MOTOR
+#ifdef SHOOT_GO1_MOTOR
   uint32_t data_of_id = (uint32_t)can_instance->RxHeader.ExtId & 0x07FFFFFF;
   uint8_t temp_module_id = CAN_To_RS485_Module_ID_Callback(
       (uint8_t)(can_instance->RxHeader.ExtId >> 27) &

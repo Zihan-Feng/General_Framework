@@ -36,14 +36,14 @@ uint8_t debug_buffer[9];
 Subscriber *sub_debug;
 pub_Control_Data debug_pid;
 
-Subscriber *xbox_data;
-pub_Xbox_Data xbox_data_pub;
+// Subscriber *xbox_data;
+// pub_Xbox_Data xbox_data_pub;
 
-Subscriber *ros_upper_level;
-pub_Upper_level_Control upper_level_data_pub;
+// Subscriber *ros_upper_level;
+// pub_Upper_level_Control upper_level_data_pub;
 
-Subscriber *encorder_shoot;
-pub_Encoder_Data encorder_data_pub_shoot;
+// Subscriber *encorder_shoot;
+// pub_Encoder_Data encorder_data_pub_shoot;
 
 VOFA_Instance_t *vofa_instance = NULL;
 Uart_Instance_t *vofa_uart_instance = NULL;
@@ -258,7 +258,6 @@ float go1_cur_pos = 0;
 float go1_cur_spe = 0;
 #endif
 double v_test = 0.0;
-int count = 0;
 __attribute((noreturn)) void Debug_Task(void *argument) {
   portTickType currentTime;
   currentTime = xTaskGetTickCount();
@@ -276,9 +275,9 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
 #endif
 
 #ifdef TEST_VESC
-  state = WAITE;
-  PID_Init(&vesc_pos_shoot_pid);
-  PID_Init(&vesc_pos_reset_pid);
+  // state = WAITE;
+  // PID_Init(&vesc_pos_shoot_pid);
+  // PID_Init(&vesc_pos_reset_pid);
 #endif 
 
 #ifdef VOFA_TO_DEBUG
@@ -295,52 +294,53 @@ __attribute((noreturn)) void Debug_Task(void *argument) {
   }
 #endif
 
-encoder_uart_instance = Uart_Register(&Encoder_uart_package);
-if (encoder_uart_instance == NULL) {
-  LOGERROR("encoder uart register failed!");
-  vTaskDelete(NULL);
-} 
-encoder_instance = Encoder_init(encoder_uart_instance, 10);
-if (encoder_instance == NULL) {
-  LOGERROR("encoder init failed!");
-  vTaskDelete(NULL);
-}
+// encoder_uart_instance = Uart_Register(&Encoder_uart_package);
+// if (encoder_uart_instance == NULL) {
+//   LOGERROR("encoder uart register failed!");
+//   vTaskDelete(NULL);
+// } 
+// encoder_instance = Encoder_init(encoder_uart_instance, 10);
+// if (encoder_instance == NULL) {
+//   LOGERROR("encoder init failed!");
+//   vTaskDelete(NULL);
+// }
 
 #ifdef DEBUG_GO1_MOTOR
-  go1_motor[0].GO_Motor_No_Tarque_Ctrl();
-  if (!have_start)
-    vTaskDelay(5);
-    go1_cur_pos = go1_motor[0].real_cur_data.Pos;
-    go1_cur_spe = go1_motor[0].real_cur_data.W;
-    debug_pos = go1_cur_pos;
-    debug_spe = go1_cur_spe;
+  // go1_motor[0].GO_Motor_No_Tarque_Ctrl();
+  // if (!have_start)
+  //   vTaskDelay(5);
+  //   go1_cur_pos = go1_motor[0].real_cur_data.Pos;
+  //   go1_cur_spe = go1_motor[0].real_cur_data.W;
+  //   debug_pos = go1_cur_pos;
+  //   debug_spe = go1_cur_spe;
 #endif
 
-  publish_data xbox_;
-  xbox_data = register_sub("xbox", 1);
-  publish_data ros_upper_level_control_;
-  ros_upper_level = register_sub("ros_upper_level_control", 1);
-  publish_data encorder_data;
-  encorder_shoot = register_sub("Encoder_pub", 1);
-  uint16_t ratio = 8000 / 1024;
-  uint16_t ratio1 = 5000 / 1024;
+  // publish_data xbox_;
+  // xbox_data = register_sub("xbox", 1);
+  // publish_data ros_upper_level_control_;
+  // ros_upper_level = register_sub("ros_upper_level_control", 1);
+  // publish_data encorder_data;
+  // encorder_shoot = register_sub("Encoder_pub", 1);
+  // uint16_t ratio = 8000 / 1024;
+  // uint16_t ratio1 = 5000 / 1024;
 
   for (;;) {
-    encoder_instance->Encoder_task(encoder_instance);
-    LOGINFO("encoder task is running!");
-    xbox_ = xbox_data->getdata(xbox_data);
-    if (xbox_.len != -1) {
-      xbox_data_pub = *(pub_Xbox_Data *)xbox_.data;
-    }
-    ros_upper_level_control_ = ros_upper_level->getdata(ros_upper_level);
-    if (ros_upper_level_control_.len != -1) {
-      upper_level_data_pub = *(pub_Upper_level_Control *)ros_upper_level_control_.data;
-    }
-    encorder_data = encorder_shoot->getdata(encorder_shoot);
-    if (encorder_data.len != -1) {
-      encorder_data_pub_shoot = *(pub_Encoder_Data *)encorder_data.data;
-    }
-    count++;
+    // encoder_instance->Encoder_task(encoder_instance);
+    // LOGINFO("encoder task is running!");
+    // xbox_ = xbox_data->getdata(xbox_data);
+    // if (xbox_.len != -1) {
+    //   xbox_data_pub = *(pub_Xbox_Data *)xbox_.data;
+    // }
+    // ros_upper_level_control_ = ros_upper_level->getdata(ros_upper_level);
+    // if (ros_upper_level_control_.len != -1) {
+    //   upper_level_data_pub = *(pub_Upper_level_Control *)ros_upper_level_control_.data;
+    // }
+    // encorder_data = encorder_shoot->getdata(encorder_shoot);
+    // if (encorder_data.len != -1) {
+    //   encorder_data_pub_shoot = *(pub_Encoder_Data *)encorder_data.data;
+    // }
+    // count++;
+
     // go1_cur_pos = go1_motor[0].real_cur_data.Pos;
     // go1_cur_spe = go1_motor[0].real_cur_data.W;
 #ifdef TEST_VESC
@@ -460,77 +460,80 @@ if (encoder_instance == NULL) {
     // else if (xbox_data_pub.btnB) debug_band_pos -= 0.01;
     // if (xbox_data_pub.btnA) upper_level_data_pub.band_pos = debug_band_pos;
     // else upper_level_data_pub.band_pos = 0;
-    if (upper_level_data_pub.cylinder) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-    else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
-    float err = 0.0f;
-    switch(state) {
-        case RELOAD:
-          Target_Pos = 0.012f;
-          // 归零完成后回到等待状态
-          if (encorder_data_pub_shoot.distance <= 0.016 && encorder_data_pub_shoot.distance >= 0.001) {
-              state = WAITE;
-          }
-          break;
-        case WAITE:
-            // 当处于等待状态时，接收新的装载位置并开始移动
-            if (upper_level_data_pub.band_pos > 0.01 && upper_level_data_pub.band_pos <= 30.0) {
-                Target_Pos = upper_level_data_pub.band_pos / 100.0f; // cm转m
-                state = MOVE;
-            }
-            break;
 
-        case MOVE:
-            // 确认到达目标位置（误差小于5mm）
-            err = Target_Pos - encorder_data_pub_shoot.distance;
-            if( 1 == Wait_stability(err))
-            {
-                state = READY;
-            }
-            break;
 
-        case READY:
-            // 接收到射球指令时激活射击机构
-            // if (upper_level_data_pub.shoot == 1) {
-            //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-            //     shoot_flag = 1;
+
+    // if (upper_level_data_pub.cylinder) HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+    // else HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+    // float err = 0.0f;
+    // switch(state) {
+    //     case RELOAD:
+    //       Target_Pos = 0.012f;
+    //       // 归零完成后回到等待状态
+    //       if (encorder_data_pub_shoot.distance <= 0.016 && encorder_data_pub_shoot.distance >= 0.001) {
+    //           state = WAITE;
+    //       }
+    //       break;
+    //     case WAITE:
+    //         // 当处于等待状态时，接收新的装载位置并开始移动
+    //         if (upper_level_data_pub.band_pos > 0.01 && upper_level_data_pub.band_pos <= 30.0) {
+    //             Target_Pos = upper_level_data_pub.band_pos / 100.0f; // cm转m
+    //             state = MOVE;
+    //         }
+    //         break;
+
+    //     case MOVE:
+    //         // 确认到达目标位置（误差小于5mm）
+    //         err = Target_Pos - encorder_data_pub_shoot.distance;
+    //         if( 1 == Wait_stability(err))
+    //         {
+    //             state = READY;
+    //         }
+    //         break;
+
+    //     case READY:
+    //         // 接收到射球指令时激活射击机构
+    //         // if (upper_level_data_pub.shoot == 1) {
+    //         //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+    //         //     shoot_flag = 1;
                 
-            // }
-            // else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
-            //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-            //     shoot_flag = 0;
-            //     state = SHOOT;
-            // }
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-            // shoot_flag = 1;
-            shoot_count++;
-            if (shoot_count == 50 /*upper_level_data_pub.shoot == 1 && shoot_flag == 1*/) {
-                HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-                // shoot_flag = 0;
-                shoot_count = 0;
-                state = SHOOT;
-            }
-            break;
+    //         // }
+    //         // else if (upper_level_data_pub.shoot == 0 && shoot_flag == 1) {
+    //         //     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    //         //     shoot_flag = 0;
+    //         //     state = SHOOT;
+    //         // }
+    //         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+    //         // shoot_flag = 1;
+    //         shoot_count++;
+    //         if (shoot_count == 50 /*upper_level_data_pub.shoot == 1 && shoot_flag == 1*/) {
+    //             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    //             // shoot_flag = 0;
+    //             shoot_count = 0;
+    //             state = SHOOT;
+    //         }
+    //         break;
 
-        case SHOOT:
-            // 立即释放射击信号并开始返回原点
-            state = RELOAD;
-            break;
+    //     case SHOOT:
+    //         // 立即释放射击信号并开始返回原点
+    //         state = RELOAD;
+    //         break;
 
-    }
+    // }
 
-    // 始终执行PID控制
-    if (ABS(Target_Pos - 0.012f) < 0.0001f && state == WAITE) 
-    {
-      // PID_Calculate(&vesc_pos_reset_pid, encorder_data_pub_shoot.distance, Target_Pos);
-      // vesc[0].Rpm_Control(vesc_pos_reset_pid.Output);
-      vesc[0].Rpm_Control(0);
-    }
-    else 
-    {
-      PID_Calculate(&vesc_pos_shoot_pid, encorder_data_pub_shoot.distance, Target_Pos);
-      vesc[0].Rpm_Control(vesc_pos_shoot_pid.Output);
-    }
-    COMMON_Motor_SendMsgs(vesc);
+    // // 始终执行PID控制
+    // if (ABS(Target_Pos - 0.012f) < 0.0001f && state == WAITE) 
+    // {
+    //   // PID_Calculate(&vesc_pos_reset_pid, encorder_data_pub_shoot.distance, Target_Pos);
+    //   // vesc[0].Rpm_Control(vesc_pos_reset_pid.Output);
+    //   vesc[0].Rpm_Control(0);
+    // }
+    // else 
+    // {
+    //   PID_Calculate(&vesc_pos_shoot_pid, encorder_data_pub_shoot.distance, Target_Pos);
+    //   vesc[0].Rpm_Control(vesc_pos_shoot_pid.Output);
+    // }
+    // COMMON_Motor_SendMsgs(vesc);
 #endif
 
 #endif
@@ -655,49 +658,51 @@ if (encoder_instance == NULL) {
     // else if (xbox_data_pub.btnDirLeft) upper_level_data_pub.go1_pos = 3;
     // else if (xbox_data_pub.btnDirRight) upper_level_data_pub.go1_pos = 4;
     // else upper_level_data_pub.go1_pos = 0;
-    if (upper_level_data_pub.go1_pos == 1 || upper_level_data_pub.go1_pos == 2) go1_motor_flag = 1;
-    else if (upper_level_data_pub.go1_pos == 3 || upper_level_data_pub.go1_pos == 4) go1_motor_flag = 2;
-    if (go1_motor_flag == 1)
-    {
-      if (upper_level_data_pub.go1_pos == 1)
-      {
-        debug_pos = go1_cur_pos + 2.83;
-      }
-      else if (upper_level_data_pub.go1_pos == 2)
-      {
-        debug_pos = go1_cur_pos + 0.1;
-      }
-      if (debug_pos > 4.2) debug_pos = 4.2;
-      // if (xbox_data_pub.btnB) {
-      //   go1_motor->stop_the_motor();
-      // }
-      if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
-      {
-         debug_kp = 0.2;
-         debug_kd = 0.021;
-         go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
-      }
-      else{
-        debug_kp = 3;
-        debug_kd = 0.08;
-        go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
-      }
-    }
-    else if (go1_motor_flag == 2)
-    {
-      debug_kp = 3;
-      debug_kd = 0.08;
-      if (upper_level_data_pub.go1_pos == 3)
-      {
-        debug_pos -= 0.005;
-      }
-      else if (upper_level_data_pub.go1_pos == 4)
-      {
-        debug_pos += 0.005;
-      }
-      if (debug_pos > 4.2) debug_pos = 4.2;
-      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
-    }
+
+    
+    // if (upper_level_data_pub.go1_pos == 1 || upper_level_data_pub.go1_pos == 2) go1_motor_flag = 1;
+    // else if (upper_level_data_pub.go1_pos == 3 || upper_level_data_pub.go1_pos == 4) go1_motor_flag = 2;
+    // if (go1_motor_flag == 1)
+    // {
+    //   if (upper_level_data_pub.go1_pos == 1)
+    //   {
+    //     debug_pos = go1_cur_pos + 2.83;
+    //   }
+    //   else if (upper_level_data_pub.go1_pos == 2)
+    //   {
+    //     debug_pos = go1_cur_pos + 0.1;
+    //   }
+    //   if (debug_pos > 4.2) debug_pos = 4.2;
+    //   // if (xbox_data_pub.btnB) {
+    //   //   go1_motor->stop_the_motor();
+    //   // }
+    //   if (ABS(debug_pos - go1_motor[0].real_cur_data.Pos) > 0.3)
+    //   {
+    //      debug_kp = 0.2;
+    //      debug_kd = 0.021;
+    //      go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+    //   }
+    //   else{
+    //     debug_kp = 3;
+    //     debug_kd = 0.08;
+    //     go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+    //   }
+    // }
+    // else if (go1_motor_flag == 2)
+    // {
+    //   debug_kp = 3;
+    //   debug_kd = 0.08;
+    //   if (upper_level_data_pub.go1_pos == 3)
+    //   {
+    //     debug_pos -= 0.005;
+    //   }
+    //   else if (upper_level_data_pub.go1_pos == 4)
+    //   {
+    //     debug_pos += 0.005;
+    //   }
+    //   if (debug_pos > 4.2) debug_pos = 4.2;
+    //   go1_motor[0].GO_Motor_Pos_Ctrl(debug_pos, debug_kp, debug_kd);
+    // }
     
 
     // if (debug <= 5000 || debug >= 10000) {
@@ -714,51 +719,52 @@ if (encoder_instance == NULL) {
     // vTaskDelay(5);
   }
 }
-enum Wait_stability_state{
-    Wait_Reach = 0,
-    Sampling = 1,
-    Check = 2,
-}wait_status;
 
-uint8_t Wait_stability(float err)
-{
-  static uint8_t cnt = 0;
-  static uint8_t acceptable_cnt = 0;
-  switch (wait_status)
-  {
-    case Wait_Reach:
-      if(err < 0.005 && err > -0.005)
-      {
-        LOGINFO("Reach at %d",HAL_GetTick());
-        wait_status = Sampling;
-        cnt = 0;
-        acceptable_cnt = 0;
-      }
-    break;
-    case Sampling:      
-      cnt++;
-      if(err < 0.005 && err > -0.005)
-      {
-        acceptable_cnt++;
-      }
-      if(cnt >= Simeple_times)
-      {
-        wait_status = Check;
-      }
-    break;
-    case Check:
-      wait_status = Wait_Reach;
-      float Ratio_valid_values = (float)acceptable_cnt / cnt;
-      if(Ratio_valid_values>0.8)
-      {
-        LOGINFO("Check passe at %d",HAL_GetTick());
-        return 1;
-      }
-      else
-      {
-        LOGINFO("Check failed at %d",HAL_GetTick());
-      }
-    break;
-  }
-  return 0;
-}
+// enum Wait_stability_state{
+//     Wait_Reach = 0,
+//     Sampling = 1,
+//     Check = 2,
+// }wait_status;
+
+// uint8_t Wait_stability(float err)
+// {
+//   static uint8_t cnt = 0;
+//   static uint8_t acceptable_cnt = 0;
+//   switch (wait_status)
+//   {
+//     case Wait_Reach:
+//       if(err < 0.005 && err > -0.005)
+//       {
+//         LOGINFO("Reach at %d",HAL_GetTick());
+//         wait_status = Sampling;
+//         cnt = 0;
+//         acceptable_cnt = 0;
+//       }
+//     break;
+//     case Sampling:      
+//       cnt++;
+//       if(err < 0.005 && err > -0.005)
+//       {
+//         acceptable_cnt++;
+//       }
+//       if(cnt >= Simeple_times)
+//       {
+//         wait_status = Check;
+//       }
+//     break;
+//     case Check:
+//       wait_status = Wait_Reach;
+//       float Ratio_valid_values = (float)acceptable_cnt / cnt;
+//       if(Ratio_valid_values>0.8)
+//       {
+//         LOGINFO("Check passe at %d",HAL_GetTick());
+//         return 1;
+//       }
+//       else
+//       {
+//         LOGINFO("Check failed at %d",HAL_GetTick());
+//       }
+//     break;
+//   }
+//   return 0;
+// }
