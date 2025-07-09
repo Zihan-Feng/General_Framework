@@ -274,14 +274,14 @@ __attribute((noreturn)) void Shoot_Task(void *argument) {
 #ifdef SHOOT_M3508
 
 SCurvePlanner pole1_planner(
-    0.0, 450,    // 起始/目标位置 (cm)
+    0.0, 520,    // 起始/目标位置 (cm)
     0.0, 0.0,     // 起始/结束速度 (rpm)
     4000.0, 15000.0,  // 最大速度/加速度 
     100000.0, 0.8   // 加加速度/期望时间s
 );
 
 SCurvePlanner pole2_planner(
-    0.0, 450,    // 起始/目标位置 (cm)
+    0.0, 480,    // 起始/目标位置 (cm)
     0.0, 0.0,     // 起始/结束速度 (rpm)
     4000.0, 15000.0,  // 最大速度/加速度 
     100000.0, 0.8   // 加加速度/期望时间s
@@ -295,6 +295,7 @@ enum pole_t {
   UPPERING_MANUAL,
   LOWERING_MANUAL,
   ARRIVE,
+  ARRIVE_2
 }pole1 = ARRIVE;
 enum pole_t pole2 = ARRIVE;
 #endif
@@ -396,10 +397,13 @@ enum pole_t pole2 = ARRIVE;
         if (ABS(pole_motor[0].motor_current) > 2000) 
         {
           pole1_planner.reset(0.0); // 重置规划器
-          pole1 = ARRIVE;
+          pole1 = ARRIVE_2;
         }
         break;
       case ARRIVE:
+        pole_motor[0].Motor_Ctrl(50);
+        break;
+      case ARRIVE_2:
         pole_motor[0].Motor_Ctrl(0);
         break;
       default:
@@ -430,10 +434,13 @@ enum pole_t pole2 = ARRIVE;
         if (ABS(pole_motor[1].motor_current) > 4000)
         {
           pole2_planner.reset(0.0); // 重置规划器
-          pole2 = ARRIVE;
+          pole2 = ARRIVE_2;
         }
         break;
       case ARRIVE:
+        pole_motor[1].Motor_Ctrl(20);
+        break;
+      case ARRIVE_2:
         pole_motor[1].Motor_Ctrl(0);
         break;
       default:
