@@ -19,6 +19,7 @@
 #include "control_task.h"
 #include "debug_task.h"
 #include "shoot_task.h"
+#include "Laser_sensor.h"
 
 /* module层接口头文件 */
 #include "soft_iwdg.h"
@@ -35,6 +36,7 @@ extern osThreadId_t Shoot_TaskHandle;
 extern osThreadId_t Chassis_TaskHandle;
 extern osThreadId_t Control_TaskHandle;
 extern osThreadId_t ROSCOM_TaskHandle;
+extern osThreadId_t Laser_Sensor_TaskHandle;
 
 /* Definitions for TaskFunc */
 void ins_Task(void *argument);
@@ -47,6 +49,7 @@ void Chassis_Task(void *argument);
 void Control_Task(void *argument);
 void ROSCOM_Task(void *argument);
 void Encoder_Task(void *argument);
+void LaserPositioning_Task(void* argument);
 /**
  * @brief os任务创建初始化函数
  * 
@@ -125,8 +128,14 @@ void osTaskInit(void)
     };
     ROSCOM_TaskHandle = osThreadNew(ROSCOM_Task, NULL, &ROSCOMTaskHandle_attributes);
 
-}
+	const osThreadAttr_t LaserTask_attributes = {
+    .name = "Laser_TaskHandle",
+    .stack_size = 128*4 ,
+    .priority = (osPriority_t) osPriorityNormal,
+    };
+     Laser_Sensor_TaskHandle = osThreadNew(LaserPositioning_Task, NULL, &LaserTask_attributes);
 
+}
 
 __attribute((noreturn)) void IWDGTask(void *argument)
 {

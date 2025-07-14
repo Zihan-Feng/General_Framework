@@ -75,4 +75,11 @@ typedef struct {
   float   distance;
 } pub_Encoder_Data;
 
+typedef struct {
+  uint32_t Distance;
+	uint16_t SignalQuality;
+	uint16_t State;
+} pub_Laser_Data;
+
+
 #pragma pack()

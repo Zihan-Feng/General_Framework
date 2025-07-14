@@ -24,6 +24,7 @@
 #include "pathplanning.h"
 #include "encoder.h"
 #include "pid_controller.h"
+#include "servo.h"
 
 #define Simeple_times 15
 #define SAMPLE_TIMES 15
@@ -49,11 +50,15 @@ Uart_Instance_t *encoder_uart_instance_shoot = NULL;
 extern uart_package_t Encoder_uart_package;
 
 Flash_Data_t Shoot_Flash;
+Servo_Instance *servo2;
 
 //函数声明
 uint8_t Wait_stability(float err);
 void Encoder_INIT(void);
 void Send_Debug_Data_To_Vofa(float target, float distance, float cur_pos);
+
+uint8_t Wait_Pole_UParrive(void);
+uint8_t Wait_Pole_LOWarrive(void);
 
 uint8_t a_66666 = 0;
 
@@ -75,36 +80,6 @@ CAN_Tx_Instance_t VESC_tx_instance1 = {
     .tx_len = 8,
     .can_tx_buff = {0},
 };
-
-// CAN_Rx_Instance_t VESC_rx_instance2 = {
-//     .can_handle = &hcan2,
-//     .RxHeader = {0},
-//     .rx_len = 8,
-//     .can_rx_buff = {0},
-// };
-
-// CAN_Tx_Instance_t VESC_tx_instance2 = {
-//     .can_handle = &hcan2,
-//     .isExTid = 1,
-//     .tx_mailbox = 0,
-//     .tx_len = 8,
-//     .can_tx_buff = {0},
-// };
-
-// CAN_Rx_Instance_t VESC_rx_instance3 = {
-//     .can_handle = &hcan2,
-//     .RxHeader = {0},
-//     .rx_len = 8,
-//     .can_rx_buff = {0},
-// };
-
-// CAN_Tx_Instance_t VESC_tx_instance3 = {
-//     .can_handle = &hcan2,
-//     .isExTid = 1,
-//     .tx_mailbox = 0,
-//     .tx_len = 8,
-//     .can_tx_buff = {0},
-// };
 
 Motor_Control_Setting_t VESC_motor_ctrl = {0};
 
@@ -262,9 +237,17 @@ CCMRAM Motor_C630 pole_motor[2] = {
 
 double SPEED_TEST = 0.0;
 #endif
+Servo_Config_s servo2_config = 
+{
+    .tim = &htim12,
+    .channel = TIM_CHANNEL_2,
+    .arr = 2000 - 1
+};
+float angle = 0.0;
 uint32_t get_time;
+static uint8_t step = 0;
 //Shoot_Task
-__attribute((noreturn)) void Shoot_Task(void *argument) {
+__attribute((section(".ram_code"),noreturn)) void Shoot_Task(void *argument) {
 
   portTickType currentTime;
   currentTime = xTaskGetTickCount();
@@ -296,8 +279,8 @@ enum pole_t {
   LOWERING_MANUAL,
   ARRIVE,
   ARRIVE_2
-}pole1 = ARRIVE;
-enum pole_t pole2 = ARRIVE;
+}pole1 = ARRIVE_2;
+enum pole_t pole2 = ARRIVE_2;
 #endif
 
 #ifdef SHOOT_GO1_MOTOR
@@ -334,10 +317,21 @@ enum pole_t pole2 = ARRIVE;
   #ifdef SHOOT_Flash_SAVE
 
   Flash_LoadArray(Shoot_Flash.shoot_flash_buf, ARRAY_SIZE);
-  
-  
+   for(int i = 0; i < ARRAY_SIZE; i++)
+  {
+    if(Shoot_Flash.shoot_flash_buf[i] >= 0xFFF0)
+    {
+      Shoot_Flash.shoot_flash_buf[i] = 0;
+    }
+  }
+#if 0
   Flash_SaveArray(Shoot_Flash.shoot_flash_buf,ARRAY_SIZE);
+#endif
   #endif
+  
+    servo2 = Servo_Register(&servo2_config);
+    while(servo2 == NULL);
+    Servo_Init(servo2);
  for (;;) {
    #ifdef VOFA_TO_DEBUG
    if(vofa_instance == NULL)
@@ -368,87 +362,76 @@ enum pole_t pole2 = ARRIVE;
     // else if (xbox_data_pub_shoot.btnDirLeft) upper_level_data_pub.go1_pos = 4;
     // else if (xbox_data_pub_shoot.btnDirRight) upper_level_data_pub.go1_pos = 3;
     // else upper_level_data_pub.go1_pos = 0;
-    if (upper_level_data_pub.go1_pos == 1) {pole1 = UPPERING_AUTO; pole2 = UPPERING_AUTO;}
-    else if (upper_level_data_pub.go1_pos == 2) {pole1 = LOWERING_AUTO; pole2 = LOWERING_AUTO;}
-    else if (upper_level_data_pub.go1_pos == 3) {pole1 = UPPERING_MANUAL; pole2 = UPPERING_MANUAL;}
-    else if (upper_level_data_pub.go1_pos == 4) {pole1 = LOWERING_MANUAL; pole2 = LOWERING_MANUAL;}
+    if (upper_level_data_pub.go1_pos == 1) {pole1 = UPPERING_MANUAL; pole2 = UPPERING_MANUAL;}
+    else if (upper_level_data_pub.go1_pos == 2) {pole1 = LOWERING_MANUAL; pole2 = LOWERING_MANUAL;}
+    // else if (upper_level_data_pub.go1_pos == 3) {pole1 = UPPERING_MANUAL; pole2 = UPPERING_MANUAL;}
+    // else if (upper_level_data_pub.go1_pos == 4) {pole1 = LOWERING_MANUAL; pole2 = LOWERING_MANUAL;}
     switch (pole1)
     {
-      case UPPERING_AUTO:
-        SPEED_TEST = pole1_planner.update(dt);
-        pole_motor[0].Motor_Ctrl(SPEED_TEST);
-        if (pole1_planner.arrived()) pole1 = UPPERING_MANUAL;
-        break;
+      // case UPPERING_MANUAL:
+      //   Servo_SetAngle(servo2, 90);
+      //   pole_motor[0].Motor_Ctrl(1620);
+      //   pole_motor[1].Motor_Ctrl(1620);
+      //   if (Wait_Pole_arrive()) 
+      //   {
+      //     pole1 = ARRIVE;
+      //   }
+      //   break;
+      case UPPERING_MANUAL:
+        static uint32_t startTime = 0;
+        
+        if (step == 0) 
+        {
+            // 第一步：设置舵机角度，并记录开始时间
+            Servo_SetAngle(servo2, 90);
+            startTime = HAL_GetTick();  // 记录当前时间
+            step = 1;                   // 进入下一步
+        } 
+        else if (step == 1) 
+        {
+            // 第二步：等待1秒后执行电机控制
+            if (HAL_GetTick() - startTime >= 1000) 
+            {
+                pole_motor[0].Motor_Ctrl(320);
+                pole_motor[1].Motor_Ctrl(320);
+                step = 2;               // 进入下一步
+            }
+        } 
+        else if (step == 2) 
+        {
+              // 第三步：检查是否到达目标位置
+              if (Wait_Pole_UParrive()) {
+                  pole1 = ARRIVE;
+                  step = 0;               // 重置状态机
+              }
+        }
+      break;
       case LOWERING_AUTO:
         SPEED_TEST = -pole1_planner.update(dt);
         pole_motor[0].Motor_Ctrl(SPEED_TEST);
         if (pole1_planner.arrived()) pole1 = LOWERING_MANUAL;
         break;
-      case UPPERING_MANUAL:
-        pole_motor[0].Motor_Ctrl(120);
-        if (ABS(pole_motor[0].motor_current) > 2000) 
-        {
-          pole1_planner.reset(0.0); // 重置规划器
-          pole1 = ARRIVE;
-        }
-        break;
+      
       case LOWERING_MANUAL:
-        pole_motor[0].Motor_Ctrl(-120);
-        if (ABS(pole_motor[0].motor_current) > 2000) 
+        pole_motor[0].Motor_Ctrl(-1520);
+        pole_motor[1].Motor_Ctrl(-1520);
+         if (Wait_Pole_LOWarrive()) 
         {
-          pole1_planner.reset(0.0); // 重置规划器
           pole1 = ARRIVE_2;
         }
         break;
       case ARRIVE:
-        pole_motor[0].Motor_Ctrl(50);
+        pole_motor[0].Motor_Ctrl(80);
+        pole_motor[1].Motor_Ctrl(80);
         break;
       case ARRIVE_2:
+        Servo_SetAngle(servo2, -70);
         pole_motor[0].Motor_Ctrl(0);
-        break;
-      default:
-        break;
-    }
-    switch (pole2)
-    {
-      case UPPERING_AUTO:
-        SPEED_TEST = pole2_planner.update(dt);
-        pole_motor[1].Motor_Ctrl(SPEED_TEST);
-        if (pole2_planner.arrived()) pole2 = UPPERING_MANUAL;
-        break;
-      case LOWERING_AUTO:
-        SPEED_TEST = -pole2_planner.update(dt);
-        pole_motor[1].Motor_Ctrl(SPEED_TEST);
-        if (pole2_planner.arrived()) pole2 = LOWERING_MANUAL;
-        break;
-      case UPPERING_MANUAL:
-        pole_motor[1].Motor_Ctrl(120);
-        if (ABS(pole_motor[1].motor_current) > 4000)
-        {
-          pole2_planner.reset(0.0); // 重置规划器
-          pole2 = ARRIVE;
-        }
-        break;
-      case LOWERING_MANUAL:
-        pole_motor[1].Motor_Ctrl(-120);
-        if (ABS(pole_motor[1].motor_current) > 4000)
-        {
-          pole2_planner.reset(0.0); // 重置规划器
-          pole2 = ARRIVE_2;
-        }
-        break;
-      case ARRIVE:
-        pole_motor[1].Motor_Ctrl(20);
-        break;
-      case ARRIVE_2:
         pole_motor[1].Motor_Ctrl(0);
         break;
       default:
         break;
     }
-    // if (upper_level_data_pub.go1_pos == 1) pole_motor[0].Motor_Ctrl(120);
-    // else if (upper_level_data_pub.go1_pos == 2) pole_motor[0].Motor_Ctrl(-120);
-    // else pole_motor[0].Motor_Ctrl(0);
     Motor_SendMsgs(pole_motor);
 #endif
 
@@ -462,10 +445,24 @@ enum pole_t pole2 = ARRIVE;
       switch (state)
       {
         case RESET://发射机构回位,Targer的单位为m
-        //HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-        //注意这重置零位之后需要重新校准
-        Target_Pos = -0.008f;//发射机构零位置
-        if(fabs(encorder_data_pub_shoot.distance - Target_Pos) < 0.002
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+        //当零位和零刻度线不一致时，避免编码器掉线而导致一直有误差
+        if(encorder_data_pub_shoot.distance != 0)
+        {
+          Target_Pos = -0.014f;//发射机构零位置
+        }
+        else
+        {
+          Target_Pos = 0.0f;
+        }
+        //防止冲顶
+        if(encorder_data_pub_shoot.distance <= -0.016f)
+        {
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+          Target_Pos = encorder_data_pub_shoot.distance;
+        }
+       
+        if(fabs(encorder_data_pub_shoot.distance - Target_Pos) <= 0.002
           && encorder_data_pub_shoot.distance != 0)
           {
             HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);//气缸立起，卡主发射机构
@@ -492,6 +489,7 @@ enum pole_t pole2 = ARRIVE;
         break;
       }
       shoot_err = Target_Pos - encorder_data_pub_shoot.distance;
+      // if( 1 == Wait_stability(shoot_err) && upper_level_data_pub.band_pos)
       if( 1 == Wait_stability(shoot_err))
       {
           state = SHOOT;
@@ -522,12 +520,12 @@ enum pole_t pole2 = ARRIVE;
         {
           Shoot_Flash.Flash_Mark = 0;
           Flash_SaveArray(Shoot_Flash.shoot_flash_buf,ARRAY_SIZE);
-          LOGINFO("shoot num:\r\n");
+          SEGGER_RTT_printf(0,"shoot num:\r\n");
           for(int i=0;i<ARRAY_SIZE;i++)
           {
-            LOGINFO("%d\r\n",Shoot_Flash.shoot_flash_buf[i]);
+            SEGGER_RTT_printf(0,"%d\r\n",Shoot_Flash.shoot_flash_buf[i]);
           }
-          LOGINFO("\r\n");
+          SEGGER_RTT_printf(0,"\r\n");
         }
         #endif
         state = RESET;
@@ -708,3 +706,52 @@ void Send_Debug_Data_To_Vofa(float target, float distance, float cur_pos) {
 #endif
 }
 
+static uint8_t up_flag = 1;
+static uint8_t low_flag = 1;
+uint8_t Wait_Pole_UParrive(void)
+{
+  
+  static uint32_t last_time = 0;
+  static uint32_t current_time = 0;
+  if(up_flag)
+  {
+    up_flag = 0;  
+    low_flag = 1; //重置棒子下降等待的标志位
+    last_time = HAL_GetTick();
+  }
+  current_time = HAL_GetTick();
+  
+  if(current_time - last_time > 420)
+  {
+    up_flag = 1;//重新置位
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
+}
+uint8_t Wait_Pole_LOWarrive(void)
+{
+  
+  static uint32_t last_time = 0;
+  static uint32_t current_time = 0;
+  if(low_flag)
+  {
+    low_flag = 0;
+    up_flag = 1;  //重置棒子上升等待的标志位
+    step = 0;     //重置舵机上升等待的标志位
+    last_time = HAL_GetTick();
+  }
+  current_time = HAL_GetTick();
+  
+  if(current_time - last_time > 850)
+  {
+    low_flag = 1;//重新置位
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
+}

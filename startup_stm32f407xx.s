@@ -64,21 +64,22 @@ Reset_Handler:
   bl  SystemInit  
 
 /* Copy the data segment initializers from flash to SRAM */  
-  ldr r0, =_sdata
-  ldr r1, =_edata
-  ldr r2, =_sidata
-  movs r3, #0
+  ldr r0, =_sdata  /* RAM中data节的起始地址 */  
+  ldr r1, =_edata  /* RAM中data节的结束地址 */
+  ldr r2, =_sidata /* Flash中data节的起始地址 */
+  movs r3, #0      /* r3为偏移地址，初始为0 */
   b LoopCopyDataInit
 
 CopyDataInit:
-  ldr r4, [r2, r3]
-  str r4, [r0, r3]
-  adds r3, r3, #4
+  ldr r4, [r2, r3] /* 从Flash的data节中读取数据并存放到r4中 */
+  str r4, [r0, r3] /* 将r4存放的数据写入到RAM的data节中（r0+r3) */
+  adds r3, r3, #4  /* 偏移地址加4，指向下一个数据 */
+/* 由于汇编是线性执行的，所以会再次执行LoopCopyDataInit 或者可以将bcc当做goto */
 
 LoopCopyDataInit:
-  adds r4, r0, r3
-  cmp r4, r1
-  bcc CopyDataInit
+  adds r4, r0, r3   /* r4此时为RAM中data节起始地址加上偏移地址 */
+  cmp r4, r1        /* r4-r1(实际上是比较地址)，若r4 < r1（无符号小于）CPSR 寄存器中的标志位中的C位，为0，否则C位为1 */
+  bcc CopyDataInit  /* Branch if Carry Clear，即 C = 0 (r4<r1)则跳转到CopyDataInit */
   
 /* Zero fill the bss segment. */
   ldr r2, =_sbss
@@ -96,7 +97,23 @@ LoopFillZerobss:
 
 /* Call static constructors */
     bl __libc_init_array
+
+/* 新增：复制 .ram_code 段到 RAM */
+  ldr r0, =_siram_code    // 加载 Flash 中的源地址
+  ldr r1, =_sram_code     // RAM 中的目标地址
+  ldr r2, =_eram_code
+  subs r2, r2, r1         // 计算段大小
+  beq copy_ram_code_done  // 如果大小为0则跳过
+
+copy_ram_code_loop:
+  ldr r3, [r0], #4        // 从 Flash 加载4字节
+  str r3, [r1], #4        // 存储到 RAM
+  subs r2, r2, #4         // 计数器减4
+  bgt copy_ram_code_loop  // 循环直到复制完成
+
+
 /* Call the application's entry point.*/
+copy_ram_code_done:
   bl  main
   bx  lr    
 .size  Reset_Handler, .-Reset_Handler

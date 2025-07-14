@@ -107,6 +107,8 @@ uint8_t Uart_Receive_Handler(Uart_Instance_t *uart_instance)
     {
         /* UART的空闲中断标志位无置位 */
         LOGERROR("Uart_Receive_Handler NO FLAG!");
+        LOGERROR("the huart is %d",(uint32_t)uart_instance->uart_package.uart_handle);
+      
         return 0;
     }
 

@@ -198,6 +198,18 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
+  /* 新增 .ram_code 段 */
+  .ram_code :
+  {
+    . = ALIGN(4);
+    _sram_code = .;       /* 段起始地址（RAM） */
+    *(.ram_code)          /* 收集所有 .ram_code 段 */
+    . = ALIGN(4);
+    _eram_code = .;       /* 段结束地址（RAM） */
+  } >RAM AT> FLASH        /* >RAM: VMA (运行地址), AT> FLASH: LMA (加载地址) */
+
+  /* 定义加载地址（Flash中的位置） */
+  _siram_code = LOADADDR(.ram_code);
   
 
   /* Remove information from the standard libraries */
